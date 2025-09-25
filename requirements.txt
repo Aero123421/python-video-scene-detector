@@ -1,4 +1,7 @@
-scenedetect
+﻿scenedetect
 opencv-python
-streamlit
+fastapi
+uvicorn
+jinja2
 pytube
+python-multipart

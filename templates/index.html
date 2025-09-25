@@ -1,0 +1,725 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>CutOnly Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f172a;
+      --bg-soft: #1e293b;
+      --bg-panel: #111827;
+      --accent: #2563eb;
+      --accent-soft: #3b82f6;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: rgba(148, 163, 184, 0.2);
+      --success: #16a34a;
+      --danger: #ef4444;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(120% 120% at 50% 0%, #1d283a 0%, #0b1220 50%, #05070f 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1.5rem;
+      padding: 1.5rem;
+    }
+    .sidebar {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .sidebar h1 {
+      font-size: 1.25rem;
+      margin: 0;
+    }
+    .sidebar p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    input[type="file"],
+    input[type="url"],
+    input[type="number"],
+    select,
+    textarea {
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      color: var(--text);
+      padding: 0.65rem 0.75rem;
+      font-size: 0.95rem;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .submit-button {
+      border: none;
+      border-radius: 14px;
+      padding: 0.8rem 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .submit-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 30px rgba(37, 99, 235, 0.35);
+    }
+    .hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin: 0;
+    }
+    .separator {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .alert {
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+    .alert-success {
+      background: rgba(22, 163, 74, 0.15);
+      border: 1px solid rgba(22, 163, 74, 0.35);
+      color: #86efac;
+    }
+    .alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #fecaca;
+    }
+    .player-card {
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .player-header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .player-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .player-header .meta {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    .player-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+    .video-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .video-panel video {
+      width: 100%;
+      border-radius: 18px;
+      background: #000;
+      box-shadow: 0 10px 40px rgba(15, 23, 42, 0.45);
+    }
+    .playback-bar {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(148, 163, 184, 0.15);
+      border-radius: 999px;
+      padding: 0.5rem 0.85rem;
+    }
+    .playback-bar input[type="range"] {
+      width: 100%;
+    }
+    .time-label {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+    .timeline {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      gap: 0.4rem;
+      padding: 0.9rem;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      overflow: hidden;
+    }
+    .timeline-marker {
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      width: 2px;
+      border-radius: 2px;
+      background: var(--accent);
+      pointer-events: none;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.6);
+      transition: left 0.1s linear;
+    }
+    .timeline-segment {
+      position: relative;
+      flex: 1;
+      min-width: 12px;
+      height: 22px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(37, 99, 235, 0.55);
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s ease, height 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #0b1220;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .timeline-segment span {
+      pointer-events: none;
+    }
+    .timeline-segment:hover {
+      transform: translateY(-4px);
+    }
+    .timeline-segment.is-active {
+      background: var(--accent);
+      height: 28px;
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.4);
+    }
+    .timeline-hint {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .details-panel {
+      background: rgba(17, 24, 39, 0.8);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      min-height: 100%;
+    }
+    .details-panel h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .metric-list {
+      display: grid;
+      gap: 0.55rem;
+      margin: 0;
+    }
+    .metric-list div {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      padding-bottom: 0.25rem;
+    }
+    .metric-list div span,
+    .metric-list div dd {
+      margin: 0;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .summary-card {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .summary-card .label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .summary-card .value {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .table-section {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .table-header h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+    .download-link {
+      color: #fff;
+      text-decoration: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.35);
+      border: 1px solid rgba(37, 99, 235, 0.65);
+      font-size: 0.85rem;
+      transition: background 0.2s ease;
+    }
+    .download-link:hover {
+      background: rgba(37, 99, 235, 0.55);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 0.9rem;
+    }
+    thead {
+      background: rgba(30, 41, 59, 0.8);
+    }
+    th, td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      text-align: left;
+    }
+    tbody tr:hover {
+      background: rgba(37, 99, 235, 0.08);
+    }
+    @media (max-width: 1200px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: sticky;
+        top: 1rem;
+      }
+      .player-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body data-selected-index="{{ result.selected_index if result else 0 }}">
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>検出設定</h1>
+      <p>検出アルゴリズムと最小カット長を指定して、動画のカット境界を解析します。</p>
+      <form action="/analyze" method="post" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="video_file">動画ファイル</label>
+          <input id="video_file" name="video_file" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo,video/webm">
+        </div>
+        <div class="separator">または</div>
+        <div class="form-group">
+          <label for="youtube_url">YouTube リンク</label>
+          <input id="youtube_url" name="youtube_url" type="url" placeholder="https://www.youtube.com/watch?v=..." value="{{ form.youtube_url }}">
+        </div>
+        <div class="form-group">
+          <label for="method">検出モード</label>
+          <select id="method" name="method">
+            {% for key, label in [("content", "content - 輝度差分"), ("adaptive", "adaptive - フェード対応"), ("threshold", "threshold - 閾値判定")] %}
+            <option value="{{ key }}" {% if form.method == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="min_len">最小カット長 (フレーム数)</label>
+          <input id="min_len" name="min_len" type="number" min="{{ MIN_MIN_LEN }}" max="{{ MAX_MIN_LEN }}" value="{{ form.min_len }}">
+        </div>
+        <button type="submit" class="submit-button">検出を実行</button>
+        <p class="hint">※ 長い動画では処理に時間がかかる場合があります。</p>
+      </form>
+    </aside>
+    <main class="main">
+      {% if error %}
+      <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+      {% if message %}
+      <div class="alert alert-success">{{ message }}</div>
+      {% endif %}
+      {% if result %}
+      <section class="player-card">
+        <div class="player-header">
+          <h2>{{ result.video_name }}</h2>
+          <span class="meta">FPS: {% if result.fps %}{{ '%.2f' | format(result.fps) }}{% else %}-{% endif %}</span>
+          <span class="meta">解析時間: {{ '%.0f' | format(result.elapsed_ms) }} ms</span>
+        </div>
+        <div class="player-layout">
+          <div class="video-panel">
+            <video id="cut-player" controls preload="metadata">
+              <source src="{{ result.video_data_url }}" type="video/mp4">
+              ブラウザが video タグに対応していません。
+            </video>
+            <div class="playback-bar">
+              <span class="time-label" id="current-time">00:00.00</span>
+              <input type="range" id="playback-slider" min="0" value="0" step="0.05">
+              <span class="time-label" id="total-time">00:00.00</span>
+            </div>
+            {% if result.segments %}
+            <div class="timeline" id="cut-timeline">
+              <div class="timeline-marker" id="timeline-marker"></div>
+              {% for seg in result.segments %}
+              <button class="timeline-segment" data-index="{{ loop.index0 }}" data-start="{{ seg.start_time }}" data-end="{{ seg.end_time }}" style="flex: {{ '%.3f' | format(seg.flex_value) }};">
+                <span>#{{ seg.index }}</span>
+              </button>
+              {% endfor %}
+            </div>
+            <p class="timeline-hint">タイムラインのバーをクリックすると、その区間から再生します。</p>
+            {% else %}
+            <p class="timeline-hint">カットは検出されませんでした。設定を見直してください。</p>
+            {% endif %}
+          </div>
+          <div class="details-panel">
+            <h3>カット情報</h3>
+            {% if result.segments %}
+            <label for="cut-select">対象カット</label>
+            <select id="cut-select">
+              {% for seg in result.segments %}
+              <option value="{{ loop.index0 }}" {% if loop.index0 == result.selected_index %}selected{% endif %}>#{{ seg.index }} {{ seg.start_label }} → {{ seg.end_label }}</option>
+              {% endfor %}
+            </select>
+            <div class="metric-list">
+              <div><dt>カット番号</dt><dd id="detail-label">-</dd></div>
+              <div><dt>開始 (フレーム)</dt><dd id="detail-start-frame">-</dd></div>
+              <div><dt>終了 (フレーム)</dt><dd id="detail-end-frame">-</dd></div>
+              <div><dt>開始時刻</dt><dd id="detail-start-time">-</dd></div>
+              <div><dt>終了時刻</dt><dd id="detail-end-time">-</dd></div>
+              <div><dt>長さ</dt><dd id="detail-duration">-</dd></div>
+            </div>
+            <label for="cut-note">メモ</label>
+            <textarea id="cut-note" rows="4" placeholder="感じたことや特徴を書き留めてください。"></textarea>
+            {% else %}
+            <p>結果がありません。別の設定で解析を行ってください。</p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+      <section class="summary">
+        <div class="summary-card">
+          <span class="label">検出カット数</span>
+          <span class="value">{{ result.total_cuts }}</span>
+        </div>
+        <div class="summary-card">
+          <span class="label">動画時間</span>
+          <span class="value">{{ result.total_duration_label }}</span>
+        </div>
+        <div class="summary-card">
+          <span class="label">平均カット長</span>
+          <span class="value">{{ result.avg_duration_compact }}</span>
+        </div>
+      </section>
+      <section class="table-section">
+        <div class="table-header">
+          <h3>カット一覧</h3>
+          <a class="download-link" href="{{ result.download_href }}" download="cuts_{{ result.video_name }}.json">JSONで保存</a>
+        </div>
+        {% if result.segments %}
+        <table>
+          <thead>
+            <tr>
+              <th>カット</th>
+              <th>開始フレーム</th>
+              <th>終了フレーム</th>
+              <th>長さ (fr)</th>
+              <th>開始時刻</th>
+              <th>終了時刻</th>
+              <th>長さ (秒)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for seg in result.segments %}
+            <tr>
+              <td>#{{ seg.index }}</td>
+              <td>{{ seg.start_frame }}</td>
+              <td>{{ seg.end_frame }}</td>
+              <td>{{ seg.duration_frames }}</td>
+              <td>{{ seg.start_label }}</td>
+              <td>{{ seg.end_label }}</td>
+              <td>{{ '%.2f' | format(seg.duration_seconds) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p>表示できるカット情報がありません。</p>
+        {% endif %}
+      </section>
+      <script id="segments-json" type="application/json">{{ result.segments_json | safe }}</script>
+      {% endif %}
+    </main>
+  </div>
+  <script>
+    (() => {
+      const dataElement = document.getElementById('segments-json');
+      if (!dataElement) {
+        return;
+      }
+      let segments = [];
+      try {
+        segments = JSON.parse(dataElement.textContent || '[]');
+      } catch (error) {
+        console.warn('failed to parse segment data', error);
+        return;
+      }
+      if (!segments.length) {
+        return;
+      }
+      const video = document.getElementById('cut-player');
+      const slider = document.getElementById('playback-slider');
+      const currentTimeLabel = document.getElementById('current-time');
+      const totalTimeLabel = document.getElementById('total-time');
+      const marker = document.getElementById('timeline-marker');
+      const segmentNodes = Array.from(document.querySelectorAll('.timeline-segment'));
+      const selectBox = document.getElementById('cut-select');
+      const detailLabel = document.getElementById('detail-label');
+      const detailStartFrame = document.getElementById('detail-start-frame');
+      const detailEndFrame = document.getElementById('detail-end-frame');
+      const detailStartTime = document.getElementById('detail-start-time');
+      const detailEndTime = document.getElementById('detail-end-time');
+      const detailDuration = document.getElementById('detail-duration');
+
+      const initialIndex = parseInt(document.body.dataset.selectedIndex || '0', 10);
+      let activeIndex = Number.isInteger(initialIndex) ? Math.max(0, Math.min(initialIndex, segments.length - 1)) : 0;
+      let isDragging = false;
+
+      function formatTime(value) {
+        if (!Number.isFinite(value) || value < 0) {
+          return '-';
+        }
+        const minutes = Math.floor(value / 60);
+        const seconds = value - minutes * 60;
+        return `${String(minutes).padStart(2, '0')}:${seconds.toFixed(2).padStart(5, '0')}`;
+      }
+
+      function updateMarker(time) {
+        if (!video) {
+          return;
+        }
+        const duration = video.duration || segments[segments.length - 1].end_time || 0;
+        if (!duration || !marker) {
+          return;
+        }
+        const bounded = Math.max(0, Math.min(time, duration));
+        marker.style.left = `${(bounded / duration) * 100}%`;
+      }
+
+      function setActive(index, { scrollIntoView = false } = {}) {
+        if (!Number.isInteger(index) || index < 0 || index >= segments.length) {
+          return;
+        }
+        activeIndex = index;
+        const segment = segments[index];
+        segmentNodes.forEach((node, idx) => {
+          if (idx === index) {
+            node.classList.add('is-active');
+            if (scrollIntoView) {
+              node.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+            }
+          } else {
+            node.classList.remove('is-active');
+          }
+        });
+        if (detailLabel) {
+          detailLabel.textContent = `#${segment.index}`;
+        }
+        if (detailStartFrame) {
+          detailStartFrame.textContent = segment.start_frame;
+        }
+        if (detailEndFrame) {
+          detailEndFrame.textContent = segment.end_frame;
+        }
+        if (detailStartTime) {
+          detailStartTime.textContent = segment.start_label;
+        }
+        if (detailEndTime) {
+          detailEndTime.textContent = segment.end_label;
+        }
+        if (detailDuration) {
+          detailDuration.textContent = segment.duration_label;
+        }
+        if (selectBox && Number(selectBox.value) !== index) {
+          selectBox.value = String(index);
+        }
+      }
+
+      function findSegmentIndex(time) {
+        for (let i = 0; i < segments.length; i += 1) {
+          const seg = segments[i];
+          const endTime = seg.end_time || seg.start_time;
+          if (time < endTime || i === segments.length - 1) {
+            return i;
+          }
+        }
+        return segments.length - 1;
+      }
+
+      function handleTimeUpdate(time) {
+        updateMarker(time);
+        if (!isDragging) {
+          slider.value = time;
+        }
+        if (currentTimeLabel) {
+          currentTimeLabel.textContent = formatTime(time);
+        }
+        const nextIndex = findSegmentIndex(time);
+        if (nextIndex !== activeIndex) {
+          setActive(nextIndex);
+        }
+      }
+
+      if (video) {
+        const assignDuration = () => {
+          if (slider && Number.isFinite(video.duration)) {
+            slider.max = video.duration;
+          }
+          if (totalTimeLabel && Number.isFinite(video.duration)) {
+            totalTimeLabel.textContent = formatTime(video.duration);
+          }
+        };
+        if (video.readyState >= 1) {
+          assignDuration();
+          handleTimeUpdate(video.currentTime);
+        }
+        video.addEventListener('loadedmetadata', () => {
+          assignDuration();
+          handleTimeUpdate(video.currentTime);
+        });
+        video.addEventListener('timeupdate', () => {
+          handleTimeUpdate(video.currentTime);
+        });
+      }
+
+      if (slider) {
+        slider.addEventListener('input', (event) => {
+          const value = Number.parseFloat(event.target.value);
+          if (Number.isFinite(value)) {
+            isDragging = true;
+            updateMarker(value);
+            if (currentTimeLabel) {
+              currentTimeLabel.textContent = formatTime(value);
+            }
+          }
+        });
+        slider.addEventListener('change', (event) => {
+          const value = Number.parseFloat(event.target.value);
+          if (Number.isFinite(value) && video) {
+            try {
+              video.currentTime = value;
+            } catch (err) {
+              console.warn('seek error', err);
+            }
+          }
+          isDragging = false;
+        });
+      }
+
+      segmentNodes.forEach((node) => {
+        node.addEventListener('click', () => {
+          const index = Number.parseInt(node.dataset.index || '0', 10);
+          const time = Number.parseFloat(node.dataset.start || '0');
+          if (video && Number.isFinite(time)) {
+            try {
+              video.currentTime = time;
+              video.play().catch(() => video.pause());
+            } catch (err) {
+              console.warn('seek failed', err);
+            }
+          }
+          setActive(index, { scrollIntoView: false });
+        });
+      });
+
+      if (selectBox) {
+        selectBox.addEventListener('change', (event) => {
+          const index = Number.parseInt(event.target.value, 10);
+          if (!Number.isInteger(index)) {
+            return;
+          }
+          const segment = segments[index];
+          if (segment && video) {
+            try {
+              video.currentTime = segment.start_time;
+              video.play().catch(() => video.pause());
+            } catch (err) {
+              console.warn('seek failed', err);
+            }
+          }
+          setActive(index, { scrollIntoView: true });
+        });
+      }
+
+      setActive(activeIndex);
+      if (video) {
+        handleTimeUpdate(video.currentTime || segments[activeIndex].start_time || 0);
+      }
+    })();
+  </script>
+</body>
+</html>

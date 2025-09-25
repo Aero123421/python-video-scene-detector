@@ -1,4 +1,4 @@
-import base64
+﻿import base64
 import inspect
 import json
 import os
@@ -6,15 +6,27 @@ import tempfile
 import time
 from contextlib import suppress
 from pathlib import Path
-from string import Template
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
-import pandas as pd
-import streamlit as st
-import streamlit.components.v1 as components
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pytube import YouTube
 from scenedetect import SceneManager, open_video
 from scenedetect.detectors import AdaptiveDetector, ContentDetector, ThresholdDetector
-from pytube import YouTube
+
+
+DEFAULT_METHOD = "content"
+SUPPORTED_METHODS = {"content", "adaptive", "threshold"}
+DEFAULT_MIN_LEN = 15
+MIN_MIN_LEN = 1
+MAX_MIN_LEN = 2000
+
+BASE_DIR = Path(__file__).resolve().parent
+TEMPLATE_DIR = BASE_DIR / "templates"
+
+app = FastAPI(title="CutOnly Analyzer")
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
 
 def format_seconds(value: float) -> str:
@@ -47,13 +59,9 @@ def remove_file_with_retry(path: str, attempts: int = 5, delay: float = 0.2) -> 
             return True
         except FileNotFoundError:
             return True
-        except PermissionError:
+        except (PermissionError, OSError):
             if attempt == attempts - 1:
                 break
-        except OSError:
-            if attempt == attempts - 1:
-                break
-
         time.sleep(delay)
 
     return False
@@ -97,7 +105,7 @@ def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: 
         with suppress(Exception):
             progress_callback(fraction)
 
-    detect_kwargs = {}
+    detect_kwargs: Dict[str, object] = {}
     parameters = inspect.signature(manager.detect_scenes).parameters
     if "callback" in parameters:
         detect_kwargs["callback"] = _progress
@@ -148,385 +156,8 @@ def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: 
     }
 
 
-def _build_segments_html(segments: List[Dict[str, float]], selected_index: int, duration_seconds: float) -> str:
-    if not segments:
-        return '<div class="timeline-empty">カットは検出されませんでした。</div>'
-    parts: List[str] = []
-    for idx, seg in enumerate(segments):
-        flex_value = seg["duration_seconds"] if duration_seconds else 1.0
-        flex_value = max(flex_value, 0.15)
-        selected_attr = ' data-selected="true"' if idx == selected_index else ""
-        parts.append(
-            '<div class="cut-segment"{selected} data-index="{idx}" data-start="{start}" data-end="{end}" '
-            'data-duration="{duration}" style="flex:{flex_value};"><span>#{label}</span></div>'.format(
-                selected=selected_attr,
-                idx=idx,
-                start=seg["start_time"],
-                end=seg["end_time"],
-                duration=seg["duration_seconds"],
-                flex_value=flex_value,
-                label=seg["index"],
-            )
-        )
-    return "".join(parts)
-
-
-def render_video_timeline(
-    video_base64: str,
-    mime_type: str,
-    segments: List[Dict[str, float]],
-    selected_index: int,
-    duration_seconds: float,
-) -> None:
-    safe_index = selected_index if 0 <= selected_index < len(segments) else 0
-    segments_html = _build_segments_html(segments, safe_index, duration_seconds)
-    template = Template(
-        """
-<div class="cut-player">
-  <video id="cut-player" controls preload="metadata">
-    <source src="data:$mime_type;base64,$video_data" type="$mime_type">
-  </video>
-  <div class="playback-bar">
-    <span class="time-label" id="current-time">00:00.00</span>
-    <input type="range" id="playback-slider" min="0" max="$duration_seconds" value="0" step="0.05">
-    <span class="time-label" id="total-time">00:00.00</span>
-  </div>
-  <div class="timeline" id="cut-timeline">
-    <div class="timeline-marker" id="cut-marker"></div>
-    $segments_html
-  </div>
-  <div class="cut-detail" id="cut-detail">
-    <div class="cut-detail__header">現在のカット</div>
-    <div class="cut-detail__body">
-      <div class="cut-detail__row"><span>カット番号</span><strong id="cut-label">-</strong></div>
-      <div class="cut-detail__row"><span>開始</span><strong id="cut-start">-</strong></div>
-      <div class="cut-detail__row"><span>終了</span><strong id="cut-end">-</strong></div>
-      <div class="cut-detail__row"><span>長さ</span><strong id="cut-duration">-</strong></div>
-    </div>
-  </div>
-</div>
-<script>
-(function() {
-  const segments = Array.from(document.querySelectorAll(".cut-segment"));
-  const selectedIndex = $selected_index;
-  const duration = $duration_seconds;
-  const player = document.getElementById("cut-player");
-  const marker = document.getElementById("cut-marker");
-  const slider = document.getElementById("playback-slider");
-  const currentTimeLabel = document.getElementById("current-time");
-  const totalTimeLabel = document.getElementById("total-time");
-  const detailRoot = document.getElementById("cut-detail");
-  const detailLabel = document.getElementById("cut-label");
-  const detailStart = document.getElementById("cut-start");
-  const detailEnd = document.getElementById("cut-end");
-  const detailDuration = document.getElementById("cut-duration");
-
-  const segmentData = segments.map((segment) => ({
-    start: parseFloat(segment.dataset.start || "0"),
-    end: parseFloat(segment.dataset.end || "0"),
-    duration: parseFloat(segment.dataset.duration || "0"),
-    label: segment.querySelector("span") ? segment.querySelector("span").textContent.trim() : "-",
-  }));
-
-  function formatTime(value) {
-    if (!Number.isFinite(value) || value < 0) {
-      return "-";
-    }
-    const minutes = Math.floor(value / 60);
-    const seconds = value - minutes * 60;
-    return String(minutes).padStart(2, "0") + ":" + seconds.toFixed(2).padStart(5, "0");
-  }
-
-  function markSelection(targetIndex) {
-    segments.forEach((segment, index) => {
-      if (index === targetIndex) {
-        segment.setAttribute("data-selected", "true");
-      } else {
-        segment.removeAttribute("data-selected");
-      }
-    });
-    const target = segmentData[targetIndex];
-    if (target && detailRoot) {
-      detailRoot.setAttribute("data-has-selection", "true");
-      detailLabel.textContent = "#" + target.label;
-      detailStart.textContent = formatTime(target.start);
-      detailEnd.textContent = formatTime(target.end);
-      const durationFormatted = formatTime(target.duration);
-      detailDuration.textContent = durationFormatted + " (" + target.duration.toFixed(2) + " 秒)";
-    }
-  }
-
-  function moveMarker(time) {
-    if (!marker || !duration) {
-      return;
-    }
-    const bounded = Math.max(0, Math.min(time, duration));
-    marker.style.left = (bounded / duration * 100) + "%";
-  }
-
-  const initialStart = segments[selectedIndex] ? parseFloat(segments[selectedIndex].dataset.start) : 0;
-
-  function seekToTarget() {
-    if (!player || Number.isNaN(initialStart)) {
-      return;
-    }
-    try {
-      player.currentTime = initialStart;
-    } catch (error) {
-      console.warn("seek error", error);
-    }
-  }
-
-  let lastActiveIndex = -1;
-  let isDragging = false;
-
-  function syncActiveSegment(currentTime) {
-    if (!segments.length) {
-      return;
-    }
-    let activeIndex = segments.length - 1;
-    for (let i = 0; i < segmentData.length; i += 1) {
-      const { start, end } = segmentData[i];
-      if (currentTime >= start && (currentTime < end || i === segmentData.length - 1)) {
-        activeIndex = i;
-        break;
-      }
-    }
-    if (activeIndex !== lastActiveIndex) {
-      lastActiveIndex = activeIndex;
-      markSelection(activeIndex);
-    }
-  }
-
-  function handleTimeUpdate(time) {
-    moveMarker(time);
-    syncActiveSegment(time);
-    if (!isDragging && slider) {
-      slider.value = time;
-    }
-    if (currentTimeLabel) {
-      currentTimeLabel.textContent = formatTime(time);
-    }
-  }
-
-  if (player) {
-    const assignDuration = () => {
-      if (slider && duration) {
-        slider.max = duration;
-      }
-      if (totalTimeLabel) {
-        totalTimeLabel.textContent = formatTime(duration);
-      }
-    };
-
-    if (player.readyState >= 1) {
-      assignDuration();
-      seekToTarget();
-      handleTimeUpdate(player.currentTime);
-    } else {
-      player.addEventListener("loadedmetadata", () => {
-        assignDuration();
-        seekToTarget();
-        handleTimeUpdate(player.currentTime);
-      });
-    }
-    player.addEventListener("timeupdate", () => handleTimeUpdate(player.currentTime));
-  }
-
-  if (slider) {
-    slider.addEventListener("input", (event) => {
-      const target = event.target;
-      if (!target) {
-        return;
-      }
-      const value = parseFloat(target.value);
-      if (Number.isFinite(value)) {
-        isDragging = true;
-        moveMarker(value);
-        if (currentTimeLabel) {
-          currentTimeLabel.textContent = formatTime(value);
-        }
-      }
-    });
-    slider.addEventListener("change", (event) => {
-      const target = event.target;
-      if (!target) {
-        return;
-      }
-      const value = parseFloat(target.value);
-      if (Number.isFinite(value) && player) {
-        try {
-          player.currentTime = value;
-        } catch (error) {
-          console.warn("slider seek error", error);
-        }
-      }
-      isDragging = false;
-    });
-  }
-
-  segments.forEach((segment, index) => {
-    segment.addEventListener("click", () => {
-      const start = parseFloat(segment.dataset.start);
-      if (!Number.isNaN(start) && player) {
-        try {
-          player.currentTime = start;
-          player.play().catch(() => player.pause());
-        } catch (error) {
-          console.warn("seek error", error);
-        }
-      }
-      markSelection(index);
-      moveMarker(start);
-      if (slider) {
-        slider.value = start;
-      }
-      if (currentTimeLabel) {
-        currentTimeLabel.textContent = formatTime(start);
-      }
-      lastActiveIndex = index;
-    });
-  });
-
-  markSelection(selectedIndex);
-  if (slider) {
-    slider.value = initialStart || 0;
-  }
-})();
-</script>
-<style>
-.cut-player {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.cut-player video {
-  width: 100%;
-  border-radius: 12px;
-  background: #000;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
-}
-.playback-bar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.05);
-  backdrop-filter: blur(12px);
-}
-.playback-bar input[type="range"] {
-  width: 100%;
-  accent-color: #2563eb;
-}
-.time-label {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: #1f2937;
-}
-.timeline {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  gap: 0.35rem;
-  height: 52px;
-  padding: 0.75rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #f5f7ff 0%, #eef3ff 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-.timeline-marker {
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  border-radius: 2px;
-  background: #2563eb;
-  pointer-events: none;
-}
-.cut-segment {
-  position: relative;
-  flex-grow: 1;
-  min-width: 6px;
-  height: 18px;
-  border-radius: 6px;
-  background: #60a5fa;
-  cursor: pointer;
-  transition: transform 0.15s ease, background 0.2s ease, height 0.15s ease, box-shadow 0.2s ease;
-}
-.cut-segment span {
-  position: absolute;
-  top: -24px;
-  left: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-.cut-segment[data-selected="true"] {
-  background: #1d4ed8;
-  height: 26px;
-  box-shadow: 0 6px 12px rgba(37, 99, 235, 0.35);
-}
-.cut-segment:hover {
-  transform: translateY(-4px);
-}
-.timeline-empty {
-  width: 100%;
-  text-align: center;
-  font-size: 0.9rem;
-  color: #475569;
-}
-.cut-detail {
-  border-radius: 12px;
-  padding: 1rem;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.15);
-}
-.cut-detail__header {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #312e81;
-  margin-bottom: 0.75rem;
-}
-.cut-detail__body {
-  display: grid;
-  gap: 0.5rem;
-}
-.cut-detail__row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  color: #312e81;
-}
-.cut-detail__row span {
-  opacity: 0.75;
-}
-.cut-detail__row strong {
-  font-variant-numeric: tabular-nums;
-}
-</style>
-        """
-    )
-    html_code = template.substitute(
-        mime_type=mime_type,
-        video_data=video_base64,
-        segments_html=segments_html,
-        selected_index=safe_index,
-        duration_seconds=duration_seconds if duration_seconds else 0,
-    )
-    components.html(html_code, height=460)
-
-
-def reset_analysis_state() -> None:
-    st.session_state["analysis"] = None
-    st.session_state["selected_cut"] = 0
-    st.session_state["selected_cut_box"] = 0
-    st.session_state["cut_notes"] = {}
-    st.session_state["demo_run_done"] = False
-
-
-def build_output_payload(video_name: str, analysis: Dict[str, object], notes: Dict[str, str]) -> Dict[str, object]:
+def build_output_payload(video_name: str, analysis: Dict[str, object], notes: Optional[Dict[str, str]] = None) -> Dict[str, object]:
+    notes = notes or {}
     cuts_payload: List[Dict[str, object]] = []
     for seg in analysis.get("segments", []):
         note_key = f"note_{seg['index']}"
@@ -554,343 +185,186 @@ def build_output_payload(video_name: str, analysis: Dict[str, object], notes: Di
     }
 
 
-st.set_page_config(page_title="CutOnly - カット解析プレイヤー", layout="wide")
+def clamp_min_len(value: int) -> int:
+    return max(MIN_MIN_LEN, min(MAX_MIN_LEN, int(value)))
 
-st.title("✂️ CutOnly - カット解析プレイヤー")
-st.caption("動画のカット境界をタイムラインで視覚化しながら確認できます。")
-st.markdown(
-    "1. 動画をアップロードすると左側にプレイヤーが表示されます。\\n"
-    "2. 解析ボタンでカットを検出し、右側で各カットの詳細を確認できます。"
-)
 
-for key, default_value in {
-    "analysis": None,
-    "selected_cut": 0,
-    "selected_cut_box": 0,
-    "video_bytes": b"",
-    "video_name": "",
-    "video_mime": "video/mp4",
-    "source_id": "",
-    "video_base64": "",
-    "video_base64_id": "",
-    "cut_notes": {},
-    "demo_run_done": False,
-}.items():
-    st.session_state.setdefault(key, default_value)
-
-demo_video_path = os.getenv("CUTONLY_DEMO_VIDEO", "").strip()
-if (
-    demo_video_path
-    and not st.session_state.get("video_bytes")
-    and Path(demo_video_path).exists()
-):
-    try:
-        video_bytes = Path(demo_video_path).read_bytes()
-        source_id = f"demo:{demo_video_path}:{len(video_bytes)}"
-        st.session_state["source_id"] = source_id
-        st.session_state["video_bytes"] = video_bytes
-        st.session_state["video_name"] = Path(demo_video_path).name
-        st.session_state["video_mime"] = guess_mime_type(demo_video_path)
-        st.session_state["video_base64"] = base64.b64encode(video_bytes).decode("utf-8")
-        st.session_state["video_base64_id"] = source_id
-        st.session_state["demo_run_done"] = False
-        reset_analysis_state()
-        st.info("デモ動画を読み込みました。解析ボタンを押して確認できます。")
-    except OSError as exc:
-        st.warning(f"デモ動画を読み込めませんでした: {exc}")
-
-uploaded_file = st.file_uploader(
-    "動画ファイルをアップロード", type=["mp4", "mov", "mkv", "avi", "webm"], accept_multiple_files=False
-)
-
-youtube_url_input = st.text_input(
-    "YouTube の動画リンク",
-    value=st.session_state.get("youtube_url_input", ""),
-    placeholder="https://www.youtube.com/watch?v=...",
-    help="URL を入力するとアップロードの代わりに YouTube から動画を取得します。",
-)
-st.session_state["youtube_url_input"] = youtube_url_input
-youtube_url = youtube_url_input.strip()
-
-if youtube_url:
-    expected_source_id = f"youtube:{youtube_url}"
-    if st.session_state.get("source_id") != expected_source_id:
-        reset_analysis_state()
-        try:
-            with st.spinner("YouTube から動画をダウンロードしています…"):
-                yt = YouTube(youtube_url)
-                stream = (
-                    yt.streams.filter(progressive=True, file_extension="mp4")
-                    .order_by("resolution")
-                    .desc()
-                    .first()
-                )
-                if stream is None:
-                    raise RuntimeError("MP4 形式のストリームが見つかりませんでした。")
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    temp_path = Path(stream.download(output_path=tmpdir))
-                    video_bytes = temp_path.read_bytes()
-                    video_name = temp_path.name
-            st.session_state["source_id"] = expected_source_id
-            st.session_state["video_bytes"] = video_bytes
-            st.session_state["video_name"] = video_name
-            st.session_state["video_mime"] = guess_mime_type(video_name)
-            st.session_state["video_base64"] = (
-                base64.b64encode(video_bytes).decode("utf-8") if video_bytes else ""
-            )
-            st.session_state["video_base64_id"] = expected_source_id
-            st.session_state["cut_notes"] = {}
-            st.success("YouTube 動画の取得が完了しました。")
-        except Exception as exc:  # pylint: disable=broad-except
-            st.session_state["source_id"] = ""
-            st.session_state["video_bytes"] = b""
-            st.session_state["video_name"] = ""
-            st.session_state["video_mime"] = "video/mp4"
-            st.session_state["video_base64"] = ""
-            st.session_state["video_base64_id"] = ""
-            st.error(f"動画のダウンロードに失敗しました: {exc}")
-
-    if uploaded_file is not None:
-        st.info("YouTube のリンクが指定されているため、アップロード済みのファイルは無視されます。")
-    uploaded_file = None
-
-with st.sidebar:
-    st.header("解析設定")
-    st.caption("検出アルゴリズムと最小カット長を指定してください。")
-    with st.form("analysis_form"):
-        method = st.selectbox(
-            "検出モード",
-            options=("content", "adaptive", "threshold"),
-            index=0,
-            help="content: 一般的な輝度変化、adaptive: フェードへの感度向上、threshold: 単純な閾値判定",
-        )
-        min_len = st.number_input(
-            "最小カット長 (フレーム数)",
-            min_value=1,
-            max_value=2000,
-            value=15,
-            step=1,
-            help="このフレーム数より短い区間はカットとして扱いません。",
-        )
-        submitted = st.form_submit_button(
-            "解析を実行",
-            use_container_width=True,
-            disabled=not bool(st.session_state.get("video_bytes")),
-        )
-
-if uploaded_file is not None:
-    video_bytes = uploaded_file.getvalue()
-    file_id = f"{uploaded_file.name}:{len(video_bytes)}"
-    if st.session_state["source_id"] != file_id:
-        st.session_state["source_id"] = file_id
-        st.session_state["video_bytes"] = video_bytes
-        st.session_state["video_name"] = uploaded_file.name
-        st.session_state["video_mime"] = uploaded_file.type or guess_mime_type(uploaded_file.name)
-        st.session_state["video_base64"] = base64.b64encode(video_bytes).decode("utf-8") if video_bytes else ""
-        st.session_state["video_base64_id"] = file_id
-        reset_analysis_state()
-
-if submitted:
-    video_bytes_state = st.session_state.get("video_bytes", b"")
-    video_name_state = st.session_state.get("video_name") or (
-        uploaded_file.name if uploaded_file is not None else ""
-    )
-
-    if not video_bytes_state:
-        st.error("先に動画ファイルをアップロードするか、YouTube リンクを入力してください。")
-    else:
-        status_placeholder = st.info("解析を開始します…")
-        progress_bar = st.progress(0.0)
-        temp_path = None
-
-        def update_progress(value: float) -> None:
-            clamped = float(min(max(value, 0.0), 1.0))
-            progress_bar.progress(clamped)
-            status_placeholder.info(f"解析中... {clamped * 100:.1f}%")
-
-        suffix = os.path.splitext(video_name_state)[1] if video_name_state else ""
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix or ".mp4") as tmpfile:
-                tmpfile.write(video_bytes_state)
-                temp_path = tmpfile.name
-            result = detect_cuts(temp_path, method, int(min_len), update_progress)
-            progress_bar.progress(1.0)
-            status_placeholder.success("解析が完了しました。")
-            st.session_state["analysis"] = {
-                **result,
-                "method": method,
-                "min_len_frames": int(min_len),
+def prepare_segments_for_ui(raw_segments: List[Dict[str, float]]) -> List[Dict[str, object]]:
+    prepared: List[Dict[str, object]] = []
+    for seg in raw_segments:
+        duration_seconds = float(seg.get("duration_seconds", 0.0) or 0.0)
+        prepared.append(
+            {
+                **seg,
+                "start_label": format_seconds(seg.get("start_time", 0.0)),
+                "end_label": format_seconds(seg.get("end_time", 0.0)),
+                "duration_label": f"{seg['duration_frames']} fr / {duration_seconds:.2f} 秒",
+                "flex_value": max(duration_seconds, 0.1),
             }
-            st.session_state["selected_cut"] = 0
-            st.session_state["selected_cut_box"] = 0
-            st.session_state["cut_notes"] = {}
-        except Exception as exc:  # pylint: disable=broad-except
-            st.session_state["analysis"] = None
-            status_placeholder.error(f"解析中にエラーが発生しました: {exc}")
-        finally:
-            if temp_path and os.path.exists(temp_path):
-                if not remove_file_with_retry(temp_path):
-                    status_placeholder.warning(
-                        "一時ファイルを削除できませんでした。他のアプリケーションでファイルを開いていないか確認してください。"
-                    )
-
-if (
-    os.getenv("CUTONLY_DEMO_AUTORUN")
-    and st.session_state.get("video_bytes")
-    and st.session_state.get("analysis") is None
-    and not st.session_state.get("demo_run_done")
-):
-    demo_progress = st.progress(0.0)
-    demo_status = st.info("デモ解析を実行しています…")
-    temp_path = None
-
-    def _demo_progress(value: float) -> None:
-        demo_progress.progress(float(min(max(value, 0.0), 1.0)))
-
-    suffix = os.path.splitext(st.session_state.get("video_name") or "")[1] or ".mp4"
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmpfile:
-            tmpfile.write(st.session_state["video_bytes"])
-            temp_path = tmpfile.name
-        result = detect_cuts(temp_path, "content", 15, _demo_progress)
-        demo_progress.progress(1.0)
-        demo_status.success("デモ解析が完了しました。")
-        st.session_state["analysis"] = {
-            **result,
-            "method": "content",
-            "min_len_frames": 15,
-        }
-        st.session_state["selected_cut"] = 0
-        st.session_state["selected_cut_box"] = 0
-        st.session_state["cut_notes"] = {}
-    except Exception as exc:  # pylint: disable=broad-except
-        demo_status.error(f"デモ解析中にエラーが発生しました: {exc}")
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            if not remove_file_with_retry(temp_path):
-                st.warning(
-                    "デモ用の一時ファイルを削除できませんでした。他のアプリケーションでファイルを開いていないか確認してください。"
-                )
-    st.session_state["demo_run_done"] = True
-
-analysis = st.session_state.get("analysis")
-has_video_source = bool(st.session_state.get("video_bytes"))
-
-if not has_video_source:
-    st.info("まずは動画ファイルをアップロードするか、YouTube リンクを入力してください。")
-elif analysis is None:
-    st.warning("解析を実行すると結果がここに表示されます。")
-else:
-    segments = analysis.get("segments", [])
-    selected_index = st.session_state.get("selected_cut", 0)
-    if segments:
-        selected_index = max(0, min(selected_index, len(segments) - 1))
-    else:
-        selected_index = 0
-    st.session_state["selected_cut"] = selected_index
-
-    video_col, detail_col = st.columns([2.2, 1.0])
-    with video_col:
-        if st.session_state["video_base64"]:
-            render_video_timeline(
-                st.session_state["video_base64"],
-                st.session_state["video_mime"],
-                segments,
-                selected_index,
-                float(analysis.get("duration_seconds") or 0.0),
-            )
-            st.caption("タイムラインのバーをクリックすると、その区間から再生します。右側で詳細を選択すると頭出しします。")
-        else:
-            st.warning("動画データの取得に失敗しました。")
-
-    with detail_col:
-        st.subheader("カット詳細")
-        if segments:
-            option_indices = list(range(len(segments)))
-
-            def _format_option(idx: int) -> str:
-                seg = segments[idx]
-                return f"#{seg['index']} {format_seconds(seg['start_time'])} → {format_seconds(seg['end_time'])}"
-
-            selected_index = st.selectbox(
-                "対象カット",
-                options=option_indices,
-                index=selected_index,
-                format_func=_format_option,
-                key="selected_cut_box",
-            )
-            st.session_state["selected_cut"] = selected_index
-            selected_segment = segments[selected_index]
-
-            st.metric("開始 (フレーム)", f"{selected_segment['start_frame']}")
-            st.metric("終了 (フレーム)", f"{selected_segment['end_frame']}")
-            st.metric(
-                "長さ",
-                f"{selected_segment['duration_frames']} fr / {selected_segment['duration_seconds']:.2f} 秒",
-            )
-
-            note_state_key = f"note_input_{selected_segment['index']}"
-            st.session_state.setdefault("cut_notes", {})
-            default_note = st.session_state["cut_notes"].get(f"note_{selected_segment['index']}", "")
-            st.session_state.setdefault(note_state_key, default_note)
-            note_value = st.text_area(
-                "メモ",
-                value=default_note,
-                key=note_state_key,
-                height=120,
-                placeholder="気づいた点や編集の狙いを書き留めてください。",
-            )
-            st.session_state["cut_notes"][f"note_{selected_segment['index']}"] = note_value
-        else:
-            st.info("カットが検出されませんでした。設定を調整して再度お試しください。")
-
-    summary_col1, summary_col2, summary_col3 = st.columns(3)
-    total_cuts = len(segments)
-    total_duration = float(analysis.get("duration_seconds") or 0.0)
-    fps = float(analysis.get("fps") or 0.0)
-    avg_duration_sec = (
-        sum(seg["duration_seconds"] for seg in segments) / total_cuts if total_cuts else 0.0
-    )
-    avg_duration_frames = (
-        sum(seg["duration_frames"] for seg in segments) / total_cuts if total_cuts else 0.0
-    )
-
-    summary_col1.metric("検出カット数", total_cuts)
-    summary_col2.metric("動画尺", format_seconds(total_duration))
-    summary_col3.metric(
-        "平均カット長",
-        f"{avg_duration_frames:.1f} fr / {avg_duration_sec:.2f} 秒",
-    )
-
-    st.subheader("カット一覧")
-    if segments:
-        table_df = pd.DataFrame(
-            [
-                {
-                    "カット": f"#{seg['index']}",
-                    "開始フレーム": seg["start_frame"],
-                    "終了フレーム": seg["end_frame"],
-                    "長さ(フレーム)": seg["duration_frames"],
-                    "開始時刻": format_seconds(seg["start_time"]),
-                    "終了時刻": format_seconds(seg["end_time"]),
-                    "長さ(秒)": f"{seg['duration_seconds']:.2f}",
-                }
-                for seg in segments
-            ]
         )
-        st.dataframe(table_df, hide_index=True, use_container_width=True)
-    else:
-        st.caption("表示できるカット情報がありません。")
+    return prepared
 
-    output_payload = build_output_payload(
-        st.session_state.get("video_name", uploaded_file.name if uploaded_file else "result"),
-        analysis,
-        st.session_state.get("cut_notes", {}),
-    )
-    output_json = json.dumps(output_payload, ensure_ascii=False, indent=2)
-    st.download_button(
-        "📥 解析結果をJSONで保存",
-        data=output_json,
-        file_name=f"cuts_{st.session_state.get('video_name', 'result')}.json",
-        mime="application/json",
-    )
+
+def build_default_context(request: Request) -> Dict[str, object]:
+    return {
+        "request": request,
+        "form": {"method": DEFAULT_METHOD, "min_len": DEFAULT_MIN_LEN, "youtube_url": ""},
+        "message": None,
+        "error": None,
+        "result": None,
+        "MIN_MIN_LEN": MIN_MIN_LEN,
+        "MAX_MIN_LEN": MAX_MIN_LEN,
+    }
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("index.html", build_default_context(request))
+
+
+@app.post("/analyze", response_class=HTMLResponse)
+async def analyze(
+    request: Request,
+    video_file: UploadFile = File(None),
+    youtube_url: str = Form(""),
+    method: str = Form(DEFAULT_METHOD),
+    min_len: int = Form(DEFAULT_MIN_LEN),
+) -> HTMLResponse:
+    form_state = {
+        "method": method,
+        "min_len": clamp_min_len(min_len),
+        "youtube_url": youtube_url.strip(),
+    }
+
+    message = None
+    error = None
+    result_payload: Optional[Dict[str, object]] = None
+
+    method = method if method in SUPPORTED_METHODS else DEFAULT_METHOD
+    min_len_frames = form_state["min_len"]
+
+    temp_paths: List[str] = []
+    video_bytes: Optional[bytes] = None
+    video_name = ""
+    video_mime = "video/mp4"
+    detection_path: Optional[str] = None
+
+    if video_file and video_file.filename:
+        video_bytes = await video_file.read()
+        if not video_bytes:
+            error = "アップロードされたファイルが空のようです。"
+        else:
+            suffix = Path(video_file.filename).suffix or ".mp4"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmpfile:
+                tmpfile.write(video_bytes)
+                detection_path = tmpfile.name
+            temp_paths.append(detection_path)
+            video_name = video_file.filename
+            video_mime = video_file.content_type or guess_mime_type(video_file.filename)
+    elif form_state["youtube_url"]:
+        url = form_state["youtube_url"]
+        try:
+            yt = YouTube(url)
+            stream = (
+                yt.streams.filter(progressive=True, file_extension="mp4")
+                .order_by("resolution")
+                .desc()
+                .first()
+            )
+            if stream is None:
+                raise RuntimeError("MP4 形式のストリームが見つかりませんでした。")
+            fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
+            os.close(fd)
+            target_path = Path(tmp_path)
+            stream.download(output_path=str(target_path.parent), filename=target_path.name)
+            detection_path = tmp_path
+            temp_paths.append(tmp_path)
+            video_bytes = target_path.read_bytes()
+            video_name = f"{yt.title}.mp4"
+            video_mime = "video/mp4"
+        except Exception as exc:  # pylint: disable=broad-except
+            error = f"YouTube 動画の取得に失敗しました: {exc}"
+    else:
+        error = "動画ファイルをアップロードするか、YouTube リンクを入力してください。"
+
+    analysis_result: Optional[Dict[str, object]] = None
+    elapsed_ms = 0.0
+
+    if not error and detection_path:
+        if video_bytes is None:
+            try:
+                video_bytes = Path(detection_path).read_bytes()
+            except OSError as exc:
+                error = f"動画データの読み込みに失敗しました: {exc}"
+
+    if not error and detection_path and video_bytes:
+        started_at = time.time()
+        try:
+            analysis_result = detect_cuts(
+                detection_path,
+                method,
+                int(min_len_frames),
+                lambda _: None,
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            error = f"解析中にエラーが発生しました: {exc}"
+        else:
+            elapsed_ms = (time.time() - started_at) * 1000.0
+            analysis_result.update({
+                "method": method,
+                "min_len_frames": int(min_len_frames),
+            })
+
+    for path in temp_paths:
+        remove_file_with_retry(path)
+
+    if not error and analysis_result and video_bytes:
+        raw_segments: List[Dict[str, float]] = analysis_result.get("segments", [])  # type: ignore[assignment]
+        segments = prepare_segments_for_ui(raw_segments)
+        selected_index = 0 if segments else -1
+
+        video_data_url = f"data:{video_mime};base64,{base64.b64encode(video_bytes).decode('ascii')}"
+        total_cuts = len(segments)
+        total_duration_label = format_seconds(float(analysis_result.get("duration_seconds") or 0.0))
+        fps = float(analysis_result.get("fps") or 0.0)
+        avg_duration_sec = (
+            sum(seg["duration_seconds"] for seg in raw_segments) / total_cuts if total_cuts else 0.0
+        )
+        avg_duration_frames = (
+            sum(seg["duration_frames"] for seg in raw_segments) / total_cuts if total_cuts else 0.0
+        )
+
+        output_payload = build_output_payload(video_name or "result", analysis_result)
+        output_json = json.dumps(output_payload, ensure_ascii=False, indent=2)
+        json_data_url = f"data:application/json;base64,{base64.b64encode(output_json.encode('utf-8')).decode('ascii')}"
+
+        result_payload = {
+            "video_name": video_name or "動画",
+            "video_data_url": video_data_url,
+            "segments": segments,
+            "segments_json": json.dumps(segments, ensure_ascii=False),
+            "selected_index": selected_index,
+            "total_cuts": total_cuts,
+            "total_duration_label": total_duration_label,
+            "fps": fps,
+            "avg_duration_frames": avg_duration_frames,
+            "avg_duration_label": format_seconds(avg_duration_sec),
+            "avg_duration_compact": f"{avg_duration_frames:.1f} fr / {avg_duration_sec:.2f} 秒",
+            "download_href": json_data_url,
+            "analysis_json": output_json,
+            "elapsed_ms": elapsed_ms,
+        }
+        message = "検出が完了しました。"
+    elif not error:
+        error = "解析結果が得られませんでした。設定を調整して再度お試しください。"
+
+    context = {
+        "request": request,
+        "form": form_state,
+        "message": message,
+        "error": error,
+        "result": result_payload,
+        "MIN_MIN_LEN": MIN_MIN_LEN,
+        "MAX_MIN_LEN": MAX_MIN_LEN,
+    }
+    return templates.TemplateResponse("index.html", context)
