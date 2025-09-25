@@ -1,10 +1,8 @@
-﻿import base64
+import base64
 import inspect
 import json
 import os
-import shutil
 import tempfile
-import urllib.request
 import time
 from contextlib import suppress
 from pathlib import Path
@@ -13,8 +11,7 @@ from typing import Callable, Dict, List, Optional
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pytube import YouTube
-from scenedetect import SceneManager, open_video
+from scenedetect import SceneManager, StatsManager, open_video
 from scenedetect.detectors import AdaptiveDetector, ContentDetector, ThresholdDetector
 
 
@@ -74,13 +71,15 @@ def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: 
     total_frames = video.duration.get_frames() if video.duration else 0
     fps = float(video.frame_rate) if video.frame_rate else 0.0
 
-    manager = SceneManager()
+    stats_manager = StatsManager()
+    manager = SceneManager(stats_manager)
+    min_scene_len = max(1, int(min_len_frames))
     if method == "adaptive":
-        manager.add_detector(AdaptiveDetector())
+        manager.add_detector(AdaptiveDetector(min_scene_len=min_scene_len))
     elif method == "content":
-        manager.add_detector(ContentDetector())
+        manager.add_detector(ContentDetector(min_scene_len=min_scene_len))
     else:
-        manager.add_detector(ThresholdDetector())
+        manager.add_detector(ThresholdDetector(min_scene_len=min_scene_len, add_final_scene=True))
 
     def _progress(*args, **kwargs):
         if not total_frames:
@@ -116,6 +115,8 @@ def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: 
 
     try:
         manager.detect_scenes(video, **detect_kwargs)
+    except IndexError as exc:
+        raise RuntimeError("フレーム処理中に内部エラーが発生しました。閾値や最小カット長を調整して再試行してください。") from exc
     finally:
         release = getattr(video, "release", None)
         if callable(release):
@@ -221,7 +222,7 @@ def prepare_segments_for_ui(
 def build_default_context(request: Request) -> Dict[str, object]:
     return {
         "request": request,
-        "form": {"method": DEFAULT_METHOD, "min_len": DEFAULT_MIN_LEN, "youtube_url": ""},
+        "form": {"method": DEFAULT_METHOD, "min_len": DEFAULT_MIN_LEN},
         "message": None,
         "error": None,
         "result": None,
@@ -239,14 +240,13 @@ async def index(request: Request) -> HTMLResponse:
 async def analyze(
     request: Request,
     video_file: UploadFile = File(None),
-    youtube_url: str = Form(""),
     method: str = Form(DEFAULT_METHOD),
     min_len: int = Form(DEFAULT_MIN_LEN),
 ) -> HTMLResponse:
+    clamped_min_len = clamp_min_len(min_len)
     form_state = {
         "method": method,
-        "min_len": clamp_min_len(min_len),
-        "youtube_url": youtube_url.strip(),
+        "min_len": clamped_min_len,
     }
 
     message = None
@@ -274,31 +274,8 @@ async def analyze(
             temp_paths.append(detection_path)
             video_name = video_file.filename
             video_mime = video_file.content_type or guess_mime_type(video_file.filename)
-    elif form_state["youtube_url"]:
-        url = form_state["youtube_url"]
-        try:
-            yt = YouTube(url, use_oauth=True, allow_oauth_cache=True)
-            stream = (
-                yt.streams.filter(progressive=True, file_extension="mp4")
-                .order_by("resolution")
-                .desc()
-                .first()
-            )
-            if stream is None:
-                raise RuntimeError("MP4 形式のストリームが見つかりませんでした。")
-            request_obj = urllib.request.Request(stream.url, headers={"User-Agent": "Mozilla/5.0"})
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmpfile:
-                with urllib.request.urlopen(request_obj) as response:
-                    shutil.copyfileobj(response, tmpfile)
-                detection_path = tmpfile.name
-            temp_paths.append(detection_path)
-            video_bytes = Path(detection_path).read_bytes()
-            video_name = f"{yt.title}.mp4"
-            video_mime = "video/mp4"
-        except Exception as exc:  # pylint: disable=broad-except
-            error = f"YouTube 動画の取得に失敗しました: {exc}"
     else:
-        error = "動画ファイルをアップロードするか、YouTube リンクを入力してください。"
+        error = "動画ファイルをアップロードしてください。"
     analysis_result: Optional[Dict[str, object]] = None
     elapsed_ms = 0.0
 

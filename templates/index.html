@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
@@ -7,49 +7,51 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0f172a;
-      --bg-soft: #1e293b;
-      --bg-panel: #111827;
-      --accent: #2563eb;
-      --accent-soft: #3b82f6;
-      --accent-strong: #60a5fa;
-      --text: #e2e8f0;
-      --text-muted: #94a3b8;
-      --border: rgba(148, 163, 184, 0.22);
-      --success: #16a34a;
-      --danger: #ef4444;
+      --bg: #0b0d10;
+      --bg-soft: #12151d;
+      --bg-panel: #161920;
+      --accent: #f97316;
+      --accent-soft: rgba(249, 115, 22, 0.28);
+      --accent-strong: #fbbf24;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --border: rgba(148, 163, 184, 0.18);
+      --success: #22c55e;
+      --danger: #f87171;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      background: radial-gradient(120% 120% at 50% 0%, #1d283a 0%, #0b1220 50%, #05070f 100%);
+      font-family: "Inter", "Noto Sans JP", system-ui, sans-serif;
+      background: radial-gradient(140% 140% at 20% 0%, #1c1310 0%, #0b0d10 55%, #050608 100%);
       color: var(--text);
       min-height: 100vh;
     }
     .layout {
       display: grid;
-      grid-template-columns: 320px 1fr;
-      gap: 1.6rem;
-      padding: 1.6rem;
+      grid-template-columns: minmax(280px, 340px) 1fr;
+      gap: 2rem;
+      padding: 2rem;
     }
     .sidebar {
-      background: rgba(17, 24, 39, 0.88);
-      backdrop-filter: blur(18px);
+      background: var(--bg-panel);
+      backdrop-filter: blur(16px);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 1.6rem;
+      border-radius: 22px;
+      padding: 1.8rem;
       display: flex;
       flex-direction: column;
-      gap: 1.35rem;
+      gap: 1.6rem;
       position: sticky;
-      top: 1.6rem;
+      top: 2rem;
       align-self: start;
-      box-shadow: 0 18px 42px rgba(8, 15, 35, 0.55);
+      box-shadow: 0 24px 60px rgba(8, 8, 12, 0.6);
     }
     .sidebar h1 {
-      font-size: 1.28rem;
       margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
     }
     .sidebar p {
       margin: 0;
@@ -69,7 +71,7 @@
       font-size: 0.95rem;
       transition: border 0.2s ease, box-shadow 0.2s ease;
     }
-    input[type="file"]:focus, input[type="url"]:focus,
+    input[type="file"]:focus,
     input[type="number"]:focus, select:focus, textarea:focus {
       border-color: rgba(96, 165, 250, 0.75);
       box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.22);
@@ -81,32 +83,40 @@
     .submit-button {
       border: none;
       border-radius: 16px;
-      padding: 0.9rem 1rem;
+      padding: 0.95rem 1rem;
       font-size: 1rem;
       font-weight: 600;
-      color: #fff;
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-soft) 100%);
+      color: #0a0908;
+      background: linear-gradient(120deg, #fbbf24 0%, #f97316 55%, #fb923c 100%);
       cursor: pointer;
       transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
       position: relative;
       overflow: hidden;
     }
-    .submit-button:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(37, 99, 235, 0.38); }
+    .submit-button:hover { transform: translateY(-1px); box-shadow: 0 18px 40px rgba(249, 115, 22, 0.4); }
     .submit-button.is-loading { opacity: 0.75; cursor: progress; }
     .submit-button.is-loading::after {
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(120deg, rgba(255,255,255,0.18), rgba(255,255,255,0));
-      animation: shimmer 0.95s linear infinite;
+      background: linear-gradient(120deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+      animation: shimmer 1s linear infinite;
     }
     @keyframes shimmer {
       from { transform: translateX(-100%); }
       to { transform: translateX(100%); }
     }
-    .hint { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
-    .separator { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
-    .main { display: flex; flex-direction: column; gap: 1.6rem; }
+    .hint { font-size: 0.82rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      background: linear-gradient(145deg, rgba(18,21,29,0.96) 0%, rgba(12,14,18,0.92) 100%);
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 1.8rem 2rem;
+      box-shadow: 0 28px 60px rgba(5, 6, 9, 0.6);
+    }
     .alert {
       padding: 0.9rem 1rem;
       border-radius: 14px;
@@ -116,26 +126,34 @@
     .alert-success { background: rgba(22,163,74,0.16); border-color: rgba(22,163,74,0.42); color: #86efac; }
     .alert-error { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.42); color: #fecaca; }
     .player-card {
-      background: rgba(10, 17, 34, 0.92);
+      background: rgba(21, 20, 26, 0.94);
       border-radius: 24px;
-      border: 1px solid rgba(59, 130, 246, 0.12);
-      padding: 1.7rem;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      padding: 1.8rem;
       display: flex;
       flex-direction: column;
-      gap: 1.35rem;
-      box-shadow: 0 28px 64px rgba(6, 12, 26, 0.68);
+      gap: 1.5rem;
+      box-shadow: 0 32px 70px rgba(5, 6, 9, 0.66);
     }
     .player-header {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.8rem;
-      align-items: center;
-      justify-content: space-between;
+      gap: 0.9rem;
+      align-items: baseline;
     }
-    .player-header h2 { margin: 0; font-size: 1.15rem; }
-    .player-header .meta { color: var(--text-muted); font-size: 0.88rem; }
-    .player-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.6rem; }
-    .video-panel { display: flex; flex-direction: column; gap: 1.1rem; }
+    .player-header h2 { margin: 0; font-size: 1.35rem; letter-spacing: 0.015em; }
+    .player-header .meta { color: var(--text-muted); font-size: 0.9rem; background: rgba(148, 163, 184, 0.14); border-radius: 999px; padding: 0.2rem 0.75rem; }
+    .player-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 1.8rem; align-items: start; }
+    .video-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      background: rgba(22, 24, 31, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 20px;
+      padding: 1.25rem 1.3rem 1.4rem;
+      box-shadow: 0 26px 52px rgba(5, 6, 9, 0.58);
+    }
     .video-panel video {
       width: 100%;
       border-radius: 20px;
@@ -155,10 +173,10 @@
     .time-label { font-variant-numeric: tabular-nums; font-weight: 600; }
     .timeline {
       position: relative;
-      border-radius: 20px;
-      padding: 0.85rem 0.35rem 0.45rem;
-      background: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.65) 100%);
-      border: 1px solid rgba(37, 99, 235, 0.35);
+      border-radius: 18px;
+      padding: 1.05rem 0.25rem 0.4rem;
+      background: linear-gradient(135deg, rgba(253, 186, 116, 0.18) 0%, rgba(18, 21, 29, 0.85) 100%);
+      border: 1px solid rgba(249, 115, 22, 0.28);
       overflow: hidden;
     }
     .timeline-progress {
@@ -167,44 +185,43 @@
       left: 0;
       height: 6px;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(96, 165, 250, 0.8) 0%, rgba(96, 165, 250, 0.2) 100%);
+      background: linear-gradient(90deg, rgba(251, 191, 36, 0.9) 0%, rgba(249, 115, 22, 0.4) 100%);
       width: 0%;
       transition: width 0.12s linear;
     }
     .timeline-scroll {
       position: relative;
       display: flex;
-      gap: 0.6rem;
+      gap: 0.65rem;
       overflow-x: auto;
-      padding: 0.75rem 0.65rem 0.55rem;
+      padding: 0.9rem 0.75rem 0.5rem;
       scroll-snap-type: x proximity;
     }
     .timeline-scroll::-webkit-scrollbar { height: 6px; }
     .timeline-scroll::-webkit-scrollbar-thumb {
       border-radius: 999px;
-      background: rgba(96, 165, 250, 0.35);
+      background: rgba(249, 115, 22, 0.35);
     }
     .timeline-chip {
       --duration-ratio: 0;
       flex: 0 0 auto;
-      width: calc(78px + var(--duration-ratio) * 160px);
-      min-width: 72px;
-      border-radius: 18px;
-      border: 1px solid rgba(37, 99, 235, 0.35);
-      background: rgba(37, 99, 235, 0.35);
-      color: rgba(226, 232, 240, 0.9);
-      padding: 0.55rem 0.75rem;
+      width: calc(88px + var(--duration-ratio) * 160px);
+      min-width: 78px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(32, 35, 45, 0.86);
+      color: var(--text-muted);
+      padding: 0.6rem 0.75rem;
       display: flex;
       flex-direction: column;
       gap: 0.2rem;
-      justify-content: center;
-      align-items: flex-start;
       font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.18s ease, background 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
+      transition: transform 0.18s ease, border 0.2s ease, background 0.2s ease, color 0.2s ease;
       scroll-snap-align: center;
       position: relative;
+      overflow: hidden;
     }
     .timeline-chip::after {
       content: "";
@@ -214,43 +231,48 @@
       border: 1px solid transparent;
       transition: border 0.2s ease;
     }
-    .timeline-chip .chip-index { font-size: 0.82rem; }
-    .timeline-chip .chip-meta { font-size: 0.7rem; color: rgba(226, 232, 240, 0.7); }
+    .timeline-chip .chip-index { font-size: 0.82rem; color: var(--text); }
+    .timeline-chip .chip-meta { font-size: 0.7rem; color: var(--text-muted); }
     .timeline-chip:hover {
       transform: translateY(-4px);
-      background: rgba(59, 130, 246, 0.55);
-      border-color: rgba(59, 130, 246, 0.55);
-      color: #fff;
+      border-color: rgba(249, 115, 22, 0.45);
+      color: var(--text);
     }
     .timeline-chip.is-active {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.85), rgba(96, 165, 250, 0.85));
-      border-color: rgba(96, 165, 250, 0.9);
-      color: #fff;
-      transform: translateY(-6px) scale(1.03);
-      box-shadow: 0 18px 36px rgba(37, 99, 235, 0.45);
+      transform: translateY(-6px) scale(1.02);
+      background: linear-gradient(130deg, rgba(249, 115, 22, 0.88), rgba(251, 191, 36, 0.9));
+      border-color: rgba(251, 191, 36, 0.72);
+      color: #111;
+      box-shadow: 0 20px 38px rgba(249, 115, 22, 0.35);
     }
     .timeline-chip.is-active::after {
-      border-color: rgba(148, 197, 255, 0.85);
-      box-shadow: 0 0 18px rgba(96, 165, 250, 0.45);
+      border-color: rgba(255, 237, 213, 0.85);
+      box-shadow: 0 0 22px rgba(249, 115, 22, 0.45);
     }
     .timeline-hint { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
     .details-panel {
-      background: rgba(13, 20, 38, 0.9);
+      background: rgba(22, 24, 31, 0.92);
       border-radius: 20px;
-      border: 1px solid rgba(59, 130, 246, 0.16);
+      border: 1px solid rgba(148, 163, 184, 0.2);
       padding: 1.3rem;
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.1rem;
       min-height: 100%;
-      transition: box-shadow 0.35s ease, transform 0.35s ease;
+      position: relative;
+      overflow: hidden;
     }
-    .details-panel.is-flash {
-      animation: detailPulse 0.6s ease;
+    .details-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 80% 0%, rgba(249, 115, 22, 0.18), transparent 55%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
     }
-    @keyframes detailPulse {
-      0% { transform: translateY(-6px); box-shadow: 0 0 0 rgba(96, 165, 250, 0); }
-      100% { transform: translateY(0); box-shadow: 0 20px 42px rgba(59, 130, 246, 0.22); }
+    .details-panel.is-flash::before {
+      opacity: 1;
     }
     .details-panel h3 { margin: 0; font-size: 1rem; }
     .metric-list { display: grid; gap: 0.6rem; margin: 0; }
@@ -277,9 +299,9 @@
       width: 100%;
       height: 14px;
       border-radius: 999px;
-      background: rgba(37, 99, 235, 0.18);
+      background: rgba(255, 237, 213, 0.08);
       overflow: hidden;
-      border: 1px solid rgba(96, 165, 250, 0.25);
+      border: 1px solid rgba(251, 191, 36, 0.35);
     }
     .gauge-fill {
       position: absolute;
@@ -288,16 +310,9 @@
       bottom: 0;
       width: 0%;
       border-radius: inherit;
-      background: linear-gradient(90deg, rgba(96, 165, 250, 0.95), rgba(59, 130, 246, 0.65));
-      box-shadow: 0 0 18px rgba(96, 165, 250, 0.45);
+      background: linear-gradient(90deg, rgba(251, 191, 36, 0.95), rgba(249, 115, 22, 0.75));
+      box-shadow: 0 0 22px rgba(249, 115, 22, 0.4);
       transition: width 0.3s ease;
-    }
-    .gauge-glow {
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at 15% 50%, rgba(255,255,255,0.18), transparent 70%);
-      mix-blend-mode: screen;
-      pointer-events: none;
     }
     .gauge-meta {
       display: flex;
@@ -307,15 +322,15 @@
       color: var(--text-muted);
     }
     .gauge-length { font-weight: 600; color: var(--text); }
-    .gauge-percent { font-weight: 700; color: rgba(96, 165, 250, 0.95); }
+    .gauge-percent { font-weight: 700; color: var(--accent-strong); }
     textarea {
       min-height: 130px;
       resize: vertical;
     }
     .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.1rem; }
     .summary-card {
-      background: rgba(10, 17, 34, 0.88);
-      border: 1px solid rgba(59, 130, 246, 0.18);
+      background: rgba(22, 24, 31, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.18);
       border-radius: 18px;
       padding: 1.25rem;
       display: flex;
@@ -325,26 +340,27 @@
     .summary-card .label { font-size: 0.86rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
     .summary-card .value { font-size: 1.32rem; font-weight: 700; }
     .table-section {
-      background: rgba(10, 17, 34, 0.92);
-      border: 1px solid rgba(59, 130, 246, 0.18);
+      background: rgba(22, 24, 31, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.18);
       border-radius: 20px;
-      padding: 1.5rem;
+      padding: 1.4rem 1.5rem;
       display: flex;
       flex-direction: column;
-      gap: 1.1rem;
+      gap: 1rem;
     }
     .table-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
     .download-link {
-      color: #fff;
+      color: #14110f;
       text-decoration: none;
-      padding: 0.55rem 0.85rem;
+      padding: 0.55rem 0.9rem;
       border-radius: 999px;
-      background: rgba(37, 99, 235, 0.35);
-      border: 1px solid rgba(37, 99, 235, 0.6);
+      background: linear-gradient(120deg, rgba(251, 191, 36, 0.95), rgba(249, 115, 22, 0.85));
       font-size: 0.86rem;
-      transition: background 0.2s ease;
+      font-weight: 600;
+      transition: transform 0.2s ease;
     }
-    .download-link:hover { background: rgba(37, 99, 235, 0.55); }
+    .download-link:hover { transform: translateY(-1px); }
+    .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; font-size: 0.9rem; }
     thead { background: rgba(30, 41, 59, 0.82); }
     th, td { padding: 0.65rem 0.8rem; border-bottom: 1px solid rgba(148, 163, 184, 0.15); text-align: left; }
@@ -352,42 +368,51 @@
     .loading-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(5, 9, 19, 0.65);
+      background: rgba(5, 5, 8, 0.65);
       backdrop-filter: blur(6px);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 1.1rem;
-      color: #fff;
+      color: var(--text);
       font-weight: 600;
       letter-spacing: 0.05em;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s ease;
+      transition: opacity 0.25s ease;
       z-index: 999;
     }
     .loading-overlay.is-visible { opacity: 1; pointer-events: all; }
     .loading-spinner {
-      width: 54px;
-      height: 54px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
-      border: 4px solid rgba(96, 165, 250, 0.3);
-      border-top-color: var(--accent-strong);
+      border: 4px solid rgba(249, 115, 22, 0.22);
+      border-top-color: var(--accent);
       animation: spin 0.9s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 1200px) {
-      .layout { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr; padding: 1.6rem; }
       .sidebar { position: static; }
       .player-layout { grid-template-columns: 1fr; }
     }
+    @media (max-width: 720px) {
+      .layout { padding: 1.4rem; gap: 1.4rem; }
+      .main { padding: 1.5rem; }
+      .sidebar { padding: 1.4rem; }
+      .player-card { padding: 1.5rem; }
+      .timeline-scroll { padding: 0.8rem 0.5rem 0.45rem; }
+    }
+
   </style>
 </head>
 <body data-selected-index="{{ result.selected_index if result else 0 }}">
   <div class="loading-overlay" id="loading-overlay">
     <div class="loading-spinner"></div>
-    <p>解析しています...</p>
+    <p>解析を実行しています...</p>
+  </div>
   </div>
   <div class="layout">
     <aside class="sidebar">
@@ -396,24 +421,19 @@
       <form action="/analyze" method="post" enctype="multipart/form-data">
         <div class="form-group">
           <label for="video_file">動画ファイル</label>
-          <input id="video_file" name="video_file" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo,video/webm">
-        </div>
-        <div class="separator">または</div>
-        <div class="form-group">
-          <label for="youtube_url">YouTube リンク</label>
-          <input id="youtube_url" name="youtube_url" type="url" placeholder="https://www.youtube.com/watch?v=..." value="{{ form.youtube_url }}">
+          <input id="video_file" name="video_file" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/x-msvideo,video/webm" required>
         </div>
         <div class="form-group">
           <label for="method">検出モード</label>
           <select id="method" name="method">
-            {% for key, label in [("content", "content - 輝度差分"), ("adaptive", "adaptive - フェード対応"), ("threshold", "threshold - 閾値判定")] %}
+            {% for key, label in [("content", "Content / ??????"), ("adaptive", "Adaptive / ????"), ("threshold", "Threshold / ????")] %}
             <option value="{{ key }}" {% if form.method == key %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="form-group">
           <label for="min_len">最小カット長 (フレーム数)</label>
-          <input id="min_len" name="min_len" type="number" min="{{ MIN_MIN_LEN }}" max="{{ MAX_MIN_LEN }}" value="{{ form.min_len }}">
+          <input id="min_len" name="min_len" type="number" min="{{ MIN_MIN_LEN }}" max="{{ MAX_MIN_LEN }}" value="{{ form.min_len }}" required>
         </div>
         <button type="submit" class="submit-button">検出を実行</button>
         <p class="hint">※ 長尺の動画では処理に時間がかかる場合があります。</p>
@@ -463,24 +483,24 @@
                 {% endfor %}
               </div>
             </div>
-            <p class="timeline-hint">チップをクリックするとその位置から再生します。再生位置に合わせてハイライトが移動します。</p>
+            <p class="timeline-hint">再生中のカットは常に中央へスムーズに追従します。スクロール操作で任意のカットへジャンプできます。</p>
             {% else %}
             <p class="timeline-hint">カットは検出されませんでした。設定を調整して再度お試しください。</p>
             {% endif %}
           </div>
           <div class="details-panel" id="details-panel">
-            <h3>カット情報</h3>
+            <h3>カット詳細</h3>
             {% if result.segments %}
-            <label for="cut-select">対象カット</label>
+            <label for="cut-select">フォーカス中のカット</label>
             <select id="cut-select">
               {% for seg in result.segments %}
-              <option value="{{ loop.index0 }}" {% if loop.index0 == result.selected_index %}selected{% endif %}>#{{ seg.index }} {{ seg.start_label }} → {{ seg.end_label }}</option>
+              <option value="{{ loop.index0 }}" {% if loop.index0 == result.selected_index %}selected{% endif %}>#{{ seg.index }} {{ seg.start_label }} - {{ seg.end_label }}</option>
               {% endfor %}
             </select>
             <div class="metric-list">
               <div class="metric-entry"><span>カット番号</span><dd id="detail-label">-</dd></div>
-              <div class="metric-entry"><span>開始 (フレーム)</span><dd id="detail-start-frame">-</dd></div>
-              <div class="metric-entry"><span>終了 (フレーム)</span><dd id="detail-end-frame">-</dd></div>
+              <div class="metric-entry"><span>開始フレーム</span><dd id="detail-start-frame">-</dd></div>
+              <div class="metric-entry"><span>終了フレーム</span><dd id="detail-end-frame">-</dd></div>
               <div class="metric-entry"><span>開始時刻</span><dd id="detail-start-time">-</dd></div>
               <div class="metric-entry"><span>終了時刻</span><dd id="detail-end-time">-</dd></div>
               <div class="metric-entry"><span>長さ (fr / 秒)</span><dd id="detail-duration">-</dd></div>
@@ -488,7 +508,6 @@
             <div class="duration-gauge" id="duration-gauge">
               <div class="gauge-track">
                 <div class="gauge-fill" id="detail-duration-fill"></div>
-                <div class="gauge-glow"></div>
               </div>
               <div class="gauge-meta">
                 <span class="gauge-length" id="detail-duration-length">-</span>
@@ -496,16 +515,17 @@
               </div>
             </div>
             <label for="cut-note">メモ</label>
-            <textarea id="cut-note" rows="4" placeholder="感じた特徴やメモを書き留めてください。"></textarea>
+            <textarea id="cut-note" rows="4" placeholder="気付きをメモしておくと編集時に役立ちます。"></textarea>
             {% else %}
-            <p>結果がありません。別の設定で解析を行ってください。</p>
+            <p>カットが検出されませんでした。最小カット長や検出手法を調整して再実行してください。</p>
             {% endif %}
           </div>
+        </div>
         </div>
       </section>
       <section class="summary">
         <div class="summary-card">
-          <span class="label">検出カット数</span>
+          <span class="label">総カット数</span>
           <span class="value">{{ result.total_cuts }}</span>
         </div>
         <div class="summary-card">
@@ -519,8 +539,8 @@
       </section>
       <section class="table-section">
         <div class="table-header">
-          <h3>カット一覧</h3>
-          <a class="download-link" href="{{ result.download_href }}" download="cuts_{{ result.video_name }}.json">JSONで保存</a>
+          <h3>解析結果テーブル</h3>
+          <a class="download-link" href="{{ result.download_href }}" download="{{ result.video_name }}.json">JSON を保存</a>
         </div>
         {% if result.segments %}
         <table>
@@ -574,7 +594,6 @@
           }
         });
       }
-
       const dataElement = document.getElementById('segments-json');
       if (!dataElement) {
         return;
@@ -643,13 +662,14 @@
         timelineProgress.style.width = `${(clamped / duration) * 100}%`;
       }
 
-      function centerChip(node) {
+      function centerChip(node, behavior = 'smooth') {
         if (!timelineScroll || !node) {
           return;
         }
-        const containerWidth = timelineScroll.clientWidth;
-        const offset = node.offsetLeft + node.offsetWidth / 2 - containerWidth / 2;
-        timelineScroll.scrollTo({ left: offset, behavior: 'smooth' });
+        const containerRect = timelineScroll.getBoundingClientRect();
+        const nodeRect = node.getBoundingClientRect();
+        const offset = nodeRect.left - containerRect.left + timelineScroll.scrollLeft - (containerRect.width / 2) + (nodeRect.width / 2);
+        timelineScroll.scrollTo({ left: offset, behavior });
       }
 
       function updateGauge(segment) {
@@ -668,14 +688,14 @@
         if (!Number.isInteger(index) || index < 0 || index >= segments.length) {
           return;
         }
-        const { center = false } = options;
+        const { center = false, instant = false } = options;
         activeIndex = index;
         const segment = segments[index];
         segmentNodes.forEach((node, idx) => {
           if (idx === index) {
             node.classList.add('is-active');
             if (center) {
-              centerChip(node);
+              centerChip(node, instant ? 'auto' : 'smooth');
             }
           } else {
             node.classList.remove('is-active');
@@ -719,7 +739,7 @@
         }
         const nextIndex = findSegmentIndex(time);
         if (nextIndex !== activeIndex) {
-          setActive(nextIndex);
+          setActive(nextIndex, { center: true });
         }
       }
 
@@ -807,7 +827,7 @@
         });
       }
 
-      setActive(activeIndex, { center: true });
+      setActive(activeIndex, { center: true, instant: true });
       if (video) {
         const initialTime = video.currentTime || segments[activeIndex].start_time || 0;
         handleTimeUpdate(initialTime);
