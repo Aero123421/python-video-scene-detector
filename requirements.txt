@@ -1,3 +1,4 @@
 scenedetect
 opencv-python
 streamlit
+pytube
