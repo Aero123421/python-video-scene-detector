@@ -14,6 +14,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from scenedetect import SceneManager, open_video
 from scenedetect.detectors import AdaptiveDetector, ContentDetector, ThresholdDetector
+from pytube import YouTube
 
 
 def format_seconds(value: float) -> str:
@@ -394,6 +395,57 @@ uploaded_file = st.file_uploader(
     "動画ファイルをアップロード", type=["mp4", "mov", "mkv", "avi", "webm"], accept_multiple_files=False
 )
 
+youtube_url_input = st.text_input(
+    "YouTube の動画リンク",
+    value=st.session_state.get("youtube_url_input", ""),
+    placeholder="https://www.youtube.com/watch?v=...",
+    help="URL を入力するとアップロードの代わりに YouTube から動画を取得します。",
+)
+st.session_state["youtube_url_input"] = youtube_url_input
+youtube_url = youtube_url_input.strip()
+
+if youtube_url:
+    expected_source_id = f"youtube:{youtube_url}"
+    if st.session_state.get("source_id") != expected_source_id:
+        reset_analysis_state()
+        try:
+            with st.spinner("YouTube から動画をダウンロードしています…"):
+                yt = YouTube(youtube_url)
+                stream = (
+                    yt.streams.filter(progressive=True, file_extension="mp4")
+                    .order_by("resolution")
+                    .desc()
+                    .first()
+                )
+                if stream is None:
+                    raise RuntimeError("MP4 形式のストリームが見つかりませんでした。")
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    temp_path = Path(stream.download(output_path=tmpdir))
+                    video_bytes = temp_path.read_bytes()
+                    video_name = temp_path.name
+            st.session_state["source_id"] = expected_source_id
+            st.session_state["video_bytes"] = video_bytes
+            st.session_state["video_name"] = video_name
+            st.session_state["video_mime"] = guess_mime_type(video_name)
+            st.session_state["video_base64"] = (
+                base64.b64encode(video_bytes).decode("utf-8") if video_bytes else ""
+            )
+            st.session_state["video_base64_id"] = expected_source_id
+            st.session_state["cut_notes"] = {}
+            st.success("YouTube 動画の取得が完了しました。")
+        except Exception as exc:  # pylint: disable=broad-except
+            st.session_state["source_id"] = ""
+            st.session_state["video_bytes"] = b""
+            st.session_state["video_name"] = ""
+            st.session_state["video_mime"] = "video/mp4"
+            st.session_state["video_base64"] = ""
+            st.session_state["video_base64_id"] = ""
+            st.error(f"動画のダウンロードに失敗しました: {exc}")
+
+    if uploaded_file is not None:
+        st.info("YouTube のリンクが指定されているため、アップロード済みのファイルは無視されます。")
+    uploaded_file = None
+
 with st.sidebar:
     st.header("解析設定")
     st.caption("検出アルゴリズムと最小カット長を指定してください。")
@@ -413,7 +465,9 @@ with st.sidebar:
             help="このフレーム数より短い区間はカットとして扱いません。",
         )
         submitted = st.form_submit_button(
-            "解析を実行", use_container_width=True, disabled=uploaded_file is None
+            "解析を実行",
+            use_container_width=True,
+            disabled=not bool(st.session_state.get("video_bytes")),
         )
 
 if uploaded_file is not None:
@@ -428,45 +482,55 @@ if uploaded_file is not None:
         st.session_state["video_base64_id"] = file_id
         reset_analysis_state()
 
-if submitted and uploaded_file is not None:
-    status_placeholder = st.info("解析を開始します…")
-    progress_bar = st.progress(0.0)
-    temp_path = None
+if submitted:
+    video_bytes_state = st.session_state.get("video_bytes", b"")
+    video_name_state = st.session_state.get("video_name") or (
+        uploaded_file.name if uploaded_file is not None else ""
+    )
 
-    def update_progress(value: float) -> None:
-        clamped = float(min(max(value, 0.0), 1.0))
-        progress_bar.progress(clamped)
-        status_placeholder.info(f"解析中... {clamped * 100:.1f}%")
+    if not video_bytes_state:
+        st.error("先に動画ファイルをアップロードするか、YouTube リンクを入力してください。")
+    else:
+        status_placeholder = st.info("解析を開始します…")
+        progress_bar = st.progress(0.0)
+        temp_path = None
 
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmpfile:
-            tmpfile.write(st.session_state["video_bytes"])
-            temp_path = tmpfile.name
-        result = detect_cuts(temp_path, method, int(min_len), update_progress)
-        progress_bar.progress(1.0)
-        status_placeholder.success("解析が完了しました。")
-        st.session_state["analysis"] = {
-            **result,
-            "method": method,
-            "min_len_frames": int(min_len),
-        }
-        st.session_state["selected_cut"] = 0
-        st.session_state["selected_cut_box"] = 0
-        st.session_state["cut_notes"] = {}
-    except Exception as exc:  # pylint: disable=broad-except
-        st.session_state["analysis"] = None
-        status_placeholder.error(f"解析中にエラーが発生しました: {exc}")
-    finally:
-        if temp_path and os.path.exists(temp_path):
-            if not remove_file_with_retry(temp_path):
-                status_placeholder.warning(
-                    "一時ファイルを削除できませんでした。他のアプリケーションでファイルを開いていないか確認してください。"
-                )
+        def update_progress(value: float) -> None:
+            clamped = float(min(max(value, 0.0), 1.0))
+            progress_bar.progress(clamped)
+            status_placeholder.info(f"解析中... {clamped * 100:.1f}%")
+
+        suffix = os.path.splitext(video_name_state)[1] if video_name_state else ""
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix or ".mp4") as tmpfile:
+                tmpfile.write(video_bytes_state)
+                temp_path = tmpfile.name
+            result = detect_cuts(temp_path, method, int(min_len), update_progress)
+            progress_bar.progress(1.0)
+            status_placeholder.success("解析が完了しました。")
+            st.session_state["analysis"] = {
+                **result,
+                "method": method,
+                "min_len_frames": int(min_len),
+            }
+            st.session_state["selected_cut"] = 0
+            st.session_state["selected_cut_box"] = 0
+            st.session_state["cut_notes"] = {}
+        except Exception as exc:  # pylint: disable=broad-except
+            st.session_state["analysis"] = None
+            status_placeholder.error(f"解析中にエラーが発生しました: {exc}")
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                if not remove_file_with_retry(temp_path):
+                    status_placeholder.warning(
+                        "一時ファイルを削除できませんでした。他のアプリケーションでファイルを開いていないか確認してください。"
+                    )
 
 analysis = st.session_state.get("analysis")
+has_video_source = bool(st.session_state.get("video_bytes"))
 
-if uploaded_file is None:
-    st.info("まずは動画ファイルをアップロードしてください。")
+if not has_video_source:
+    st.info("まずは動画ファイルをアップロードするか、YouTube リンクを入力してください。")
 elif analysis is None:
     st.warning("解析を実行すると結果がここに表示されます。")
 else:
