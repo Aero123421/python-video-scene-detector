@@ -1,7 +1,9 @@
 import base64
+import inspect
 import json
 import os
 import tempfile
+from contextlib import suppress
 from string import Template
 from typing import Callable, Dict, List
 
@@ -54,10 +56,24 @@ def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: 
         fraction = min(max(frame_idx, 0) / total_frames, 0.999)
         progress_callback(fraction)
 
+    detect_kwargs = {}
+    parameters = inspect.signature(manager.detect_scenes).parameters
+    if "callback" in parameters:
+        detect_kwargs["callback"] = _progress
+    elif "callbacks" in parameters:
+        detect_kwargs["callbacks"] = [_progress]
+
     try:
-        manager.detect_scenes(video, callback=_progress)
-    except TypeError:
-        manager.detect_scenes(video, callbacks=[_progress])
+        manager.detect_scenes(video, **detect_kwargs)
+    finally:
+        release = getattr(video, "release", None)
+        if callable(release):
+            with suppress(Exception):
+                release()
+        close = getattr(video, "close", None)
+        if callable(close):
+            with suppress(Exception):
+                close()
 
     scenes = manager.get_scene_list()
     segments: List[Dict[str, float]] = []
