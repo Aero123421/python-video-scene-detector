@@ -33,65 +33,62 @@ def guess_mime_type(filename: str) -> str:
 
 def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: Callable[[float], None]) -> Dict[str, object]:
     video = open_video(path)
-    try:
-        total_frames = video.duration.get_frames() if video.duration else 0
-        fps = float(video.base_timecode.frame_rate) if video.base_timecode else 0.0
+    total_frames = video.duration.get_frames() if video.duration else 0
+    fps = float(video.base_timecode.frame_rate) if video.base_timecode else 0.0
 
-        manager = SceneManager()
-        if method == "adaptive":
-            manager.add_detector(AdaptiveDetector())
-        elif method == "content":
-            manager.add_detector(ContentDetector())
-        else:
-            manager.add_detector(ThresholdDetector())
+    manager = SceneManager()
+    if method == "adaptive":
+        manager.add_detector(AdaptiveDetector())
+    elif method == "content":
+        manager.add_detector(ContentDetector())
+    else:
+        manager.add_detector(ThresholdDetector())
 
-        def _progress(frame_time):
-            if not total_frames:
-                return
-            try:
-                frame_idx = frame_time.get_frames()
-            except AttributeError:
-                frame_idx = int(frame_time)
-            fraction = min(max(frame_idx, 0) / total_frames, 0.999)
-            progress_callback(fraction)
-
+    def _progress(frame_time):
+        if not total_frames:
+            return
         try:
-            manager.detect_scenes(video, callback=_progress)
-        except TypeError:
-            manager.detect_scenes(video, callbacks=[_progress])
+            frame_idx = frame_time.get_frames()
+        except AttributeError:
+            frame_idx = int(frame_time)
+        fraction = min(max(frame_idx, 0) / total_frames, 0.999)
+        progress_callback(fraction)
 
-        scenes = manager.get_scene_list()
-        segments: List[Dict[str, float]] = []
-        for start_timecode, end_timecode in scenes:
-            start_frame = start_timecode.get_frames()
-            end_frame = end_timecode.get_frames()
-            duration_frames = end_frame - start_frame
-            if duration_frames < min_len_frames:
-                continue
-            start_seconds = start_frame / fps if fps else 0.0
-            end_seconds = end_frame / fps if fps else 0.0
-            segments.append(
-                {
-                    "index": len(segments) + 1,
-                    "start_frame": start_frame,
-                    "end_frame": end_frame,
-                    "duration_frames": duration_frames,
-                    "start_time": start_seconds,
-                    "end_time": end_seconds,
-                    "duration_seconds": max(end_seconds - start_seconds, 0.0),
-                }
-            )
+    try:
+        manager.detect_scenes(video, callback=_progress)
+    except TypeError:
+        manager.detect_scenes(video, callbacks=[_progress])
 
-        duration_seconds = total_frames / fps if fps else 0.0
+    scenes = manager.get_scene_list()
+    segments: List[Dict[str, float]] = []
+    for start_timecode, end_timecode in scenes:
+        start_frame = start_timecode.get_frames()
+        end_frame = end_timecode.get_frames()
+        duration_frames = end_frame - start_frame
+        if duration_frames < min_len_frames:
+            continue
+        start_seconds = start_frame / fps if fps else 0.0
+        end_seconds = end_frame / fps if fps else 0.0
+        segments.append(
+            {
+                "index": len(segments) + 1,
+                "start_frame": start_frame,
+                "end_frame": end_frame,
+                "duration_frames": duration_frames,
+                "start_time": start_seconds,
+                "end_time": end_seconds,
+                "duration_seconds": max(end_seconds - start_seconds, 0.0),
+            }
+        )
 
-        return {
-            "segments": segments,
-            "total_frames": total_frames,
-            "fps": fps,
-            "duration_seconds": duration_seconds,
-        }
-    finally:
-        video.release()
+    duration_seconds = total_frames / fps if fps else 0.0
+
+    return {
+        "segments": segments,
+        "total_frames": total_frames,
+        "fps": fps,
+        "duration_seconds": duration_seconds,
+    }
 
 
 def _build_segments_html(segments: List[Dict[str, float]], selected_index: int, duration_seconds: float) -> str:
