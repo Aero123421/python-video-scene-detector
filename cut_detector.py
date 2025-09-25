@@ -1,7 +1,11 @@
 import base64
+import inspect
 import json
 import os
 import tempfile
+import time
+from contextlib import suppress
+from pathlib import Path
 from string import Template
 from typing import Callable, Dict, List
 
@@ -31,67 +35,116 @@ def guess_mime_type(filename: str) -> str:
     }.get(ext, "video/mp4")
 
 
+def remove_file_with_retry(path: str, attempts: int = 5, delay: float = 0.2) -> bool:
+    if not path:
+        return True
+
+    file_path = Path(path)
+    for attempt in range(attempts):
+        try:
+            file_path.unlink()
+            return True
+        except FileNotFoundError:
+            return True
+        except PermissionError:
+            if attempt == attempts - 1:
+                break
+        except OSError:
+            if attempt == attempts - 1:
+                break
+
+        time.sleep(delay)
+
+    return False
+
+
 def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: Callable[[float], None]) -> Dict[str, object]:
     video = open_video(path)
-    try:
-        total_frames = video.duration.get_frames() if video.duration else 0
-        fps = float(video.base_timecode.frame_rate) if video.base_timecode else 0.0
+    total_frames = video.duration.get_frames() if video.duration else 0
+    fps = float(video.frame_rate) if video.frame_rate else 0.0
 
-        manager = SceneManager()
-        if method == "adaptive":
-            manager.add_detector(AdaptiveDetector())
-        elif method == "content":
-            manager.add_detector(ContentDetector())
-        else:
-            manager.add_detector(ThresholdDetector())
+    manager = SceneManager()
+    if method == "adaptive":
+        manager.add_detector(AdaptiveDetector())
+    elif method == "content":
+        manager.add_detector(ContentDetector())
+    else:
+        manager.add_detector(ThresholdDetector())
 
-        def _progress(frame_time):
-            if not total_frames:
-                return
-            try:
-                frame_idx = frame_time.get_frames()
-            except AttributeError:
-                frame_idx = int(frame_time)
-            fraction = min(max(frame_idx, 0) / total_frames, 0.999)
-            progress_callback(fraction)
+    def _progress(*args, **kwargs):
+        if not total_frames:
+            return
+
+        frame_time = None
+        if args:
+            frame_time = args[0]
+        elif "frame_time" in kwargs:
+            frame_time = kwargs["frame_time"]
+
+        if frame_time is None:
+            return
 
         try:
-            manager.detect_scenes(video, callback=_progress)
-        except TypeError:
-            manager.detect_scenes(video, callbacks=[_progress])
+            frame_idx = frame_time.get_frames()  # type: ignore[attr-defined]
+        except AttributeError:
+            try:
+                frame_idx = int(frame_time)
+            except (TypeError, ValueError):
+                return
 
-        scenes = manager.get_scene_list()
-        segments: List[Dict[str, float]] = []
-        for start_timecode, end_timecode in scenes:
-            start_frame = start_timecode.get_frames()
-            end_frame = end_timecode.get_frames()
-            duration_frames = end_frame - start_frame
-            if duration_frames < min_len_frames:
-                continue
-            start_seconds = start_frame / fps if fps else 0.0
-            end_seconds = end_frame / fps if fps else 0.0
-            segments.append(
-                {
-                    "index": len(segments) + 1,
-                    "start_frame": start_frame,
-                    "end_frame": end_frame,
-                    "duration_frames": duration_frames,
-                    "start_time": start_seconds,
-                    "end_time": end_seconds,
-                    "duration_seconds": max(end_seconds - start_seconds, 0.0),
-                }
-            )
+        fraction = min(max(frame_idx, 0) / total_frames, 0.999)
+        with suppress(Exception):
+            progress_callback(fraction)
 
-        duration_seconds = total_frames / fps if fps else 0.0
+    detect_kwargs = {}
+    parameters = inspect.signature(manager.detect_scenes).parameters
+    if "callback" in parameters:
+        detect_kwargs["callback"] = _progress
+    elif "callbacks" in parameters:
+        detect_kwargs["callbacks"] = [_progress]
 
-        return {
-            "segments": segments,
-            "total_frames": total_frames,
-            "fps": fps,
-            "duration_seconds": duration_seconds,
-        }
+    try:
+        manager.detect_scenes(video, **detect_kwargs)
     finally:
-        video.release()
+        release = getattr(video, "release", None)
+        if callable(release):
+            with suppress(Exception):
+                release()
+        close = getattr(video, "close", None)
+        if callable(close):
+            with suppress(Exception):
+                close()
+
+    scenes = manager.get_scene_list()
+    segments: List[Dict[str, float]] = []
+    for start_timecode, end_timecode in scenes:
+        start_frame = start_timecode.get_frames()
+        end_frame = end_timecode.get_frames()
+        duration_frames = end_frame - start_frame
+        if duration_frames < min_len_frames:
+            continue
+        start_seconds = start_frame / fps if fps else 0.0
+        end_seconds = end_frame / fps if fps else 0.0
+        segments.append(
+            {
+                "index": len(segments) + 1,
+                "start_frame": start_frame,
+                "end_frame": end_frame,
+                "duration_frames": duration_frames,
+                "start_time": start_seconds,
+                "end_time": end_seconds,
+                "duration_seconds": max(end_seconds - start_seconds, 0.0),
+            }
+        )
+
+    duration_seconds = total_frames / fps if fps else 0.0
+
+    return {
+        "segments": segments,
+        "total_frames": total_frames,
+        "fps": fps,
+        "duration_seconds": duration_seconds,
+    }
 
 
 def _build_segments_html(segments: List[Dict[str, float]], selected_index: int, duration_seconds: float) -> str:
@@ -405,7 +458,10 @@ if submitted and uploaded_file is not None:
         status_placeholder.error(f"解析中にエラーが発生しました: {exc}")
     finally:
         if temp_path and os.path.exists(temp_path):
-            os.unlink(temp_path)
+            if not remove_file_with_retry(temp_path):
+                status_placeholder.warning(
+                    "一時ファイルを削除できませんでした。他のアプリケーションでファイルを開いていないか確認してください。"
+                )
 
 analysis = st.session_state.get("analysis")
 
