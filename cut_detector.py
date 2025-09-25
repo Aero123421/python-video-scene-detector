@@ -2,7 +2,9 @@
 import inspect
 import json
 import os
+import shutil
 import tempfile
+import urllib.request
 import time
 from contextlib import suppress
 from pathlib import Path
@@ -189,17 +191,28 @@ def clamp_min_len(value: int) -> int:
     return max(MIN_MIN_LEN, min(MAX_MIN_LEN, int(value)))
 
 
-def prepare_segments_for_ui(raw_segments: List[Dict[str, float]]) -> List[Dict[str, object]]:
+def prepare_segments_for_ui(
+    raw_segments: List[Dict[str, float]],
+    longest_duration: float,
+) -> List[Dict[str, object]]:
+    max_duration = float(longest_duration or 0.0)
+    if max_duration <= 0:
+        max_duration = max(
+            (float(seg.get("duration_seconds", 0.0) or 0.0) for seg in raw_segments),
+            default=0.0,
+        )
     prepared: List[Dict[str, object]] = []
     for seg in raw_segments:
         duration_seconds = float(seg.get("duration_seconds", 0.0) or 0.0)
+        ratio = duration_seconds / max_duration if max_duration else 0.0
         prepared.append(
             {
                 **seg,
                 "start_label": format_seconds(seg.get("start_time", 0.0)),
                 "end_label": format_seconds(seg.get("end_time", 0.0)),
                 "duration_label": f"{seg['duration_frames']} fr / {duration_seconds:.2f} 秒",
-                "flex_value": max(duration_seconds, 0.1),
+                "duration_brief": f"{duration_seconds:.2f} 秒",
+                "duration_ratio": max(0.0, min(ratio, 1.0)),
             }
         )
     return prepared
@@ -264,7 +277,7 @@ async def analyze(
     elif form_state["youtube_url"]:
         url = form_state["youtube_url"]
         try:
-            yt = YouTube(url)
+            yt = YouTube(url, use_oauth=True, allow_oauth_cache=True)
             stream = (
                 yt.streams.filter(progressive=True, file_extension="mp4")
                 .order_by("resolution")
@@ -273,20 +286,19 @@ async def analyze(
             )
             if stream is None:
                 raise RuntimeError("MP4 形式のストリームが見つかりませんでした。")
-            fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
-            os.close(fd)
-            target_path = Path(tmp_path)
-            stream.download(output_path=str(target_path.parent), filename=target_path.name)
-            detection_path = tmp_path
-            temp_paths.append(tmp_path)
-            video_bytes = target_path.read_bytes()
+            request_obj = urllib.request.Request(stream.url, headers={"User-Agent": "Mozilla/5.0"})
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmpfile:
+                with urllib.request.urlopen(request_obj) as response:
+                    shutil.copyfileobj(response, tmpfile)
+                detection_path = tmpfile.name
+            temp_paths.append(detection_path)
+            video_bytes = Path(detection_path).read_bytes()
             video_name = f"{yt.title}.mp4"
             video_mime = "video/mp4"
         except Exception as exc:  # pylint: disable=broad-except
             error = f"YouTube 動画の取得に失敗しました: {exc}"
     else:
         error = "動画ファイルをアップロードするか、YouTube リンクを入力してください。"
-
     analysis_result: Optional[Dict[str, object]] = None
     elapsed_ms = 0.0
 
@@ -320,12 +332,14 @@ async def analyze(
 
     if not error and analysis_result and video_bytes:
         raw_segments: List[Dict[str, float]] = analysis_result.get("segments", [])  # type: ignore[assignment]
-        segments = prepare_segments_for_ui(raw_segments)
+        longest_duration = max((float(seg.get("duration_seconds", 0.0) or 0.0) for seg in raw_segments), default=0.0)
+        segments = prepare_segments_for_ui(raw_segments, longest_duration)
         selected_index = 0 if segments else -1
 
         video_data_url = f"data:{video_mime};base64,{base64.b64encode(video_bytes).decode('ascii')}"
         total_cuts = len(segments)
-        total_duration_label = format_seconds(float(analysis_result.get("duration_seconds") or 0.0))
+        total_duration_seconds = float(analysis_result.get("duration_seconds") or 0.0)
+        total_duration_label = format_seconds(total_duration_seconds)
         fps = float(analysis_result.get("fps") or 0.0)
         avg_duration_sec = (
             sum(seg["duration_seconds"] for seg in raw_segments) / total_cuts if total_cuts else 0.0
@@ -346,6 +360,8 @@ async def analyze(
             "selected_index": selected_index,
             "total_cuts": total_cuts,
             "total_duration_label": total_duration_label,
+            "total_duration_seconds": total_duration_seconds,
+            "longest_segment_seconds": longest_duration,
             "fps": fps,
             "avg_duration_frames": avg_duration_frames,
             "avg_duration_label": format_seconds(avg_duration_sec),
@@ -368,3 +384,4 @@ async def analyze(
         "MAX_MIN_LEN": MAX_MIN_LEN,
     }
     return templates.TemplateResponse("index.html", context)
+

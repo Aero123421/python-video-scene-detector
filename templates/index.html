@@ -15,14 +15,14 @@
       --accent-strong: #60a5fa;
       --text: #e2e8f0;
       --text-muted: #94a3b8;
-      --border: rgba(148, 163, 184, 0.2);
+      --border: rgba(148, 163, 184, 0.22);
       --success: #16a34a;
       --danger: #ef4444;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: "Segoe UI", sans-serif;
+      font-family: "Segoe UI", system-ui, sans-serif;
       background: radial-gradient(120% 120% at 50% 0%, #1d283a 0%, #0b1220 50%, #05070f 100%);
       color: var(--text);
       min-height: 100vh;
@@ -30,47 +30,49 @@
     .layout {
       display: grid;
       grid-template-columns: 320px 1fr;
-      gap: 1.5rem;
-      padding: 1.5rem;
+      gap: 1.6rem;
+      padding: 1.6rem;
     }
     .sidebar {
-      background: rgba(17, 24, 39, 0.85);
-      backdrop-filter: blur(16px);
+      background: rgba(17, 24, 39, 0.88);
+      backdrop-filter: blur(18px);
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 1.5rem;
+      border-radius: 20px;
+      padding: 1.6rem;
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1.35rem;
       position: sticky;
-      top: 1.5rem;
+      top: 1.6rem;
       align-self: start;
+      box-shadow: 0 18px 42px rgba(8, 15, 35, 0.55);
     }
     .sidebar h1 {
-      font-size: 1.25rem;
+      font-size: 1.28rem;
       margin: 0;
     }
     .sidebar p {
       margin: 0;
       color: var(--text-muted);
       font-size: 0.95rem;
-      line-height: 1.5;
+      line-height: 1.6;
     }
-    form { display: flex; flex-direction: column; gap: 1rem; }
-    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    form { display: flex; flex-direction: column; gap: 1.05rem; }
+    .form-group { display: flex; flex-direction: column; gap: 0.55rem; }
     label { font-weight: 600; font-size: 0.95rem; }
     input[type="file"], input[type="url"], input[type="number"], select, textarea {
-      border-radius: 12px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       background: var(--bg-panel);
       color: var(--text);
-      padding: 0.65rem 0.75rem;
+      padding: 0.7rem 0.85rem;
       font-size: 0.95rem;
       transition: border 0.2s ease, box-shadow 0.2s ease;
     }
-    input[type="file"]:focus, input[type="url"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
-      border-color: rgba(96, 165, 250, 0.7);
-      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25);
+    input[type="file"]:focus, input[type="url"]:focus,
+    input[type="number"]:focus, select:focus, textarea:focus {
+      border-color: rgba(96, 165, 250, 0.75);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.22);
       outline: none;
     }
     input[type="number"] { -moz-appearance: textfield; }
@@ -78,8 +80,8 @@
     input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .submit-button {
       border: none;
-      border-radius: 14px;
-      padding: 0.8rem 1rem;
+      border-radius: 16px;
+      padding: 0.9rem 1rem;
       font-size: 1rem;
       font-weight: 600;
       color: #fff;
@@ -89,184 +91,274 @@
       position: relative;
       overflow: hidden;
     }
-    .submit-button:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(37, 99, 235, 0.35); }
+    .submit-button:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(37, 99, 235, 0.38); }
     .submit-button.is-loading { opacity: 0.75; cursor: progress; }
     .submit-button.is-loading::after {
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(120deg, rgba(255,255,255,0.15), rgba(255,255,255,0));
-      animation: loadingShimmer 1s linear infinite;
+      background: linear-gradient(120deg, rgba(255,255,255,0.18), rgba(255,255,255,0));
+      animation: shimmer 0.95s linear infinite;
     }
-    @keyframes loadingShimmer {
+    @keyframes shimmer {
       from { transform: translateX(-100%); }
       to { transform: translateX(100%); }
     }
     .hint { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
     .separator { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
-    .main { display: flex; flex-direction: column; gap: 1.5rem; }
+    .main { display: flex; flex-direction: column; gap: 1.6rem; }
     .alert {
-      padding: 0.85rem 1rem;
-      border-radius: 12px;
+      padding: 0.9rem 1rem;
+      border-radius: 14px;
       font-weight: 600;
       border: 1px solid transparent;
     }
-    .alert-success { background: rgba(22,163,74,0.15); border-color: rgba(22,163,74,0.35); color: #86efac; }
-    .alert-error { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.35); color: #fecaca; }
+    .alert-success { background: rgba(22,163,74,0.16); border-color: rgba(22,163,74,0.42); color: #86efac; }
+    .alert-error { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.42); color: #fecaca; }
     .player-card {
-      background: rgba(15, 23, 42, 0.88);
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      padding: 1.5rem;
+      background: rgba(10, 17, 34, 0.92);
+      border-radius: 24px;
+      border: 1px solid rgba(59, 130, 246, 0.12);
+      padding: 1.7rem;
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
-      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.45);
+      gap: 1.35rem;
+      box-shadow: 0 28px 64px rgba(6, 12, 26, 0.68);
     }
     .player-header {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: 0.8rem;
       align-items: center;
       justify-content: space-between;
     }
-    .player-header h2 { margin: 0; font-size: 1.1rem; }
-    .player-header .meta { color: var(--text-muted); font-size: 0.85rem; }
-    .player-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.5rem; }
-    .video-panel { display: flex; flex-direction: column; gap: 1rem; }
-    .video-panel video { width: 100%; border-radius: 18px; background: #000; box-shadow: 0 10px 40px rgba(15, 23, 42, 0.45); }
+    .player-header h2 { margin: 0; font-size: 1.15rem; }
+    .player-header .meta { color: var(--text-muted); font-size: 0.88rem; }
+    .player-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1.6rem; }
+    .video-panel { display: flex; flex-direction: column; gap: 1.1rem; }
+    .video-panel video {
+      width: 100%;
+      border-radius: 20px;
+      background: #000;
+      box-shadow: 0 16px 48px rgba(8, 14, 30, 0.6);
+    }
     .playback-bar {
       display: grid;
       grid-template-columns: auto 1fr auto;
       align-items: center;
-      gap: 0.75rem;
-      background: rgba(148, 163, 184, 0.15);
+      gap: 0.85rem;
+      background: rgba(148, 163, 184, 0.16);
       border-radius: 999px;
-      padding: 0.5rem 0.85rem;
+      padding: 0.55rem 0.9rem;
     }
     .playback-bar input[type="range"] { width: 100%; }
     .time-label { font-variant-numeric: tabular-nums; font-weight: 600; }
     .timeline {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.03) 100%);
-      border: 1px solid rgba(59, 130, 246, 0.25);
-      border-radius: 16px;
-      padding: 0.9rem 1rem;
+      position: relative;
+      border-radius: 20px;
+      padding: 0.85rem 0.35rem 0.45rem;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.65) 100%);
+      border: 1px solid rgba(37, 99, 235, 0.35);
       overflow: hidden;
     }
-    .timeline-track {
-      position: relative;
-      display: flex;
-      align-items: flex-end;
-      gap: 0.4rem;
-      width: 100%;
-    }
-    .timeline-marker {
+    .timeline-progress {
       position: absolute;
-      top: -6px;
-      bottom: -6px;
-      width: 3px;
-      border-radius: 2px;
-      background: var(--accent-strong);
-      pointer-events: none;
-      box-shadow: 0 0 18px rgba(96, 165, 250, 0.65);
-      transition: left 0.08s linear;
-      transform: translateX(-50%);
+      top: 0;
+      left: 0;
+      height: 6px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(96, 165, 250, 0.8) 0%, rgba(96, 165, 250, 0.2) 100%);
+      width: 0%;
+      transition: width 0.12s linear;
     }
-    .timeline-segment {
+    .timeline-scroll {
       position: relative;
-      flex: 1;
-      min-width: 12px;
-      height: 22px;
-      border-radius: 9px;
-      border: none;
-      background: rgba(37, 99, 235, 0.5);
-      cursor: pointer;
-      transition: transform 0.18s ease, background 0.2s ease, height 0.18s ease, box-shadow 0.2s ease;
       display: flex;
-      align-items: center;
+      gap: 0.6rem;
+      overflow-x: auto;
+      padding: 0.75rem 0.65rem 0.55rem;
+      scroll-snap-type: x proximity;
+    }
+    .timeline-scroll::-webkit-scrollbar { height: 6px; }
+    .timeline-scroll::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: rgba(96, 165, 250, 0.35);
+    }
+    .timeline-chip {
+      --duration-ratio: 0;
+      flex: 0 0 auto;
+      width: calc(78px + var(--duration-ratio) * 160px);
+      min-width: 72px;
+      border-radius: 18px;
+      border: 1px solid rgba(37, 99, 235, 0.35);
+      background: rgba(37, 99, 235, 0.35);
+      color: rgba(226, 232, 240, 0.9);
+      padding: 0.55rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
       justify-content: center;
-      color: rgba(12, 20, 35, 0.7);
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 0;
+      align-items: flex-start;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
+      scroll-snap-align: center;
+      position: relative;
     }
-    .timeline-segment span { pointer-events: none; }
-    .timeline-segment:hover { transform: translateY(-4px); background: rgba(96, 165, 250, 0.75); color: #fff; }
-    .timeline-segment.is-active {
-      background: var(--accent);
-      height: 30px;
+    .timeline-chip::after {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      border: 1px solid transparent;
+      transition: border 0.2s ease;
+    }
+    .timeline-chip .chip-index { font-size: 0.82rem; }
+    .timeline-chip .chip-meta { font-size: 0.7rem; color: rgba(226, 232, 240, 0.7); }
+    .timeline-chip:hover {
+      transform: translateY(-4px);
+      background: rgba(59, 130, 246, 0.55);
+      border-color: rgba(59, 130, 246, 0.55);
       color: #fff;
-      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.45);
-      transform: translateY(-6px) scale(1.04);
-      animation: activePulse 0.35s ease;
     }
-    @keyframes activePulse {
-      from { transform: translateY(-2px) scale(0.95); opacity: 0.8; }
-      to { transform: translateY(-6px) scale(1.04); opacity: 1; }
+    .timeline-chip.is-active {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.85), rgba(96, 165, 250, 0.85));
+      border-color: rgba(96, 165, 250, 0.9);
+      color: #fff;
+      transform: translateY(-6px) scale(1.03);
+      box-shadow: 0 18px 36px rgba(37, 99, 235, 0.45);
+    }
+    .timeline-chip.is-active::after {
+      border-color: rgba(148, 197, 255, 0.85);
+      box-shadow: 0 0 18px rgba(96, 165, 250, 0.45);
     }
     .timeline-hint { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
     .details-panel {
-      background: rgba(17, 24, 39, 0.8);
-      border-radius: 18px;
-      border: 1px solid var(--border);
-      padding: 1.2rem;
+      background: rgba(13, 20, 38, 0.9);
+      border-radius: 20px;
+      border: 1px solid rgba(59, 130, 246, 0.16);
+      padding: 1.3rem;
       display: flex;
       flex-direction: column;
-      gap: 0.9rem;
+      gap: 1rem;
       min-height: 100%;
-      transition: box-shadow 0.3s ease, transform 0.3s ease;
+      transition: box-shadow 0.35s ease, transform 0.35s ease;
     }
     .details-panel.is-flash {
-      animation: detailFlash 0.6s ease;
+      animation: detailPulse 0.6s ease;
     }
-    @keyframes detailFlash {
-      0% { box-shadow: 0 0 0 rgba(96, 165, 250, 0); transform: translateY(-4px); }
-      100% { box-shadow: 0 12px 35px rgba(59, 130, 246, 0.2); transform: translateY(0); }
+    @keyframes detailPulse {
+      0% { transform: translateY(-6px); box-shadow: 0 0 0 rgba(96, 165, 250, 0); }
+      100% { transform: translateY(0); box-shadow: 0 20px 42px rgba(59, 130, 246, 0.22); }
     }
     .details-panel h3 { margin: 0; font-size: 1rem; }
-    .metric-list { display: grid; gap: 0.55rem; margin: 0; }
-    .metric-entry { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.9rem; color: var(--text-muted); border-bottom: 1px solid rgba(148, 163, 184, 0.15); padding-bottom: 0.25rem; }
-    .metric-entry span, .metric-entry dd { margin: 0; color: var(--text); font-weight: 600; }
-    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-    .summary-card {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 1.2rem;
+    .metric-list { display: grid; gap: 0.6rem; margin: 0; }
+    .metric-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.85rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+      padding-bottom: 0.35rem;
+    }
+    .metric-entry span,
+    .metric-entry dd { margin: 0; color: var(--text); font-weight: 600; }
+    .duration-gauge {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.45rem;
+      margin-top: 0.2rem;
     }
-    .summary-card .label { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
-    .summary-card .value { font-size: 1.25rem; font-weight: 700; }
-    .table-section { background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border); border-radius: 18px; padding: 1.4rem; display: flex; flex-direction: column; gap: 1rem; }
+    .gauge-track {
+      position: relative;
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.18);
+      overflow: hidden;
+      border: 1px solid rgba(96, 165, 250, 0.25);
+    }
+    .gauge-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(96, 165, 250, 0.95), rgba(59, 130, 246, 0.65));
+      box-shadow: 0 0 18px rgba(96, 165, 250, 0.45);
+      transition: width 0.3s ease;
+    }
+    .gauge-glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 15% 50%, rgba(255,255,255,0.18), transparent 70%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+    .gauge-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .gauge-length { font-weight: 600; color: var(--text); }
+    .gauge-percent { font-weight: 700; color: rgba(96, 165, 250, 0.95); }
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+    }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.1rem; }
+    .summary-card {
+      background: rgba(10, 17, 34, 0.88);
+      border: 1px solid rgba(59, 130, 246, 0.18);
+      border-radius: 18px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .summary-card .label { font-size: 0.86rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .summary-card .value { font-size: 1.32rem; font-weight: 700; }
+    .table-section {
+      background: rgba(10, 17, 34, 0.92);
+      border: 1px solid rgba(59, 130, 246, 0.18);
+      border-radius: 20px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
     .table-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-    .table-header h3 { margin: 0; font-size: 1rem; }
     .download-link {
       color: #fff;
       text-decoration: none;
-      padding: 0.5rem 0.75rem;
+      padding: 0.55rem 0.85rem;
       border-radius: 999px;
       background: rgba(37, 99, 235, 0.35);
-      border: 1px solid rgba(37, 99, 235, 0.65);
-      font-size: 0.85rem;
+      border: 1px solid rgba(37, 99, 235, 0.6);
+      font-size: 0.86rem;
       transition: background 0.2s ease;
     }
     .download-link:hover { background: rgba(37, 99, 235, 0.55); }
     table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; font-size: 0.9rem; }
-    thead { background: rgba(30, 41, 59, 0.8); }
-    th, td { padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(148, 163, 184, 0.15); text-align: left; }
-    tbody tr:hover { background: rgba(37, 99, 235, 0.08); }
+    thead { background: rgba(30, 41, 59, 0.82); }
+    th, td { padding: 0.65rem 0.8rem; border-bottom: 1px solid rgba(148, 163, 184, 0.15); text-align: left; }
+    tbody tr:hover { background: rgba(37, 99, 235, 0.1); }
     .loading-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(4, 10, 22, 0.65);
+      background: rgba(5, 9, 19, 0.65);
       backdrop-filter: blur(6px);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1rem;
+      gap: 1.1rem;
       color: #fff;
       font-weight: 600;
       letter-spacing: 0.05em;
@@ -277,8 +369,8 @@
     }
     .loading-overlay.is-visible { opacity: 1; pointer-events: all; }
     .loading-spinner {
-      width: 52px;
-      height: 52px;
+      width: 54px;
+      height: 54px;
       border-radius: 50%;
       border: 4px solid rgba(96, 165, 250, 0.3);
       border-top-color: var(--accent-strong);
@@ -300,7 +392,7 @@
   <div class="layout">
     <aside class="sidebar">
       <h1>検出設定</h1>
-      <p>検出アルゴリズムと最小カット長を指定して、動画のカット境界を解析します。</p>
+      <p>検出アルゴリズムと最小カット長を選択して、動画のカット境界を解析します。</p>
       <form action="/analyze" method="post" enctype="multipart/form-data">
         <div class="form-group">
           <label for="video_file">動画ファイル</label>
@@ -324,7 +416,7 @@
           <input id="min_len" name="min_len" type="number" min="{{ MIN_MIN_LEN }}" max="{{ MAX_MIN_LEN }}" value="{{ form.min_len }}">
         </div>
         <button type="submit" class="submit-button">検出を実行</button>
-        <p class="hint">※ 長い動画では処理に時間がかかる場合があります。</p>
+        <p class="hint">※ 長尺の動画では処理に時間がかかる場合があります。</p>
       </form>
     </aside>
     <main class="main">
@@ -353,19 +445,27 @@
               <span class="time-label" id="total-time">00:00.00</span>
             </div>
             {% if result.segments %}
-            <div class="timeline" id="cut-timeline">
-              <div class="timeline-track" id="timeline-track">
-                <div class="timeline-marker" id="timeline-marker"></div>
+            <div class="timeline" id="cut-timeline" data-total-duration="{{ result.total_duration_seconds }}" data-longest-duration="{{ result.longest_segment_seconds }}">
+              <div class="timeline-progress" id="timeline-progress"></div>
+              <div class="timeline-scroll" id="timeline-scroll">
                 {% for seg in result.segments %}
-                <button class="timeline-segment" data-index="{{ loop.index0 }}" data-start="{{ seg.start_time }}" data-end="{{ seg.end_time }}" style="flex: {{ '%.4f' | format(seg.flex_value) }};">
-                  <span>#{{ seg.index }}</span>
+                <button
+                  class="timeline-chip"
+                  data-index="{{ loop.index0 }}"
+                  data-start="{{ seg.start_time }}"
+                  data-end="{{ seg.end_time }}"
+                  data-duration="{{ seg.duration_seconds }}"
+                  style="--duration-ratio: {{ '%.4f' | format(seg.duration_ratio) }};"
+                >
+                  <span class="chip-index">#{{ seg.index }}</span>
+                  <span class="chip-meta">{{ seg.duration_brief }}</span>
                 </button>
                 {% endfor %}
               </div>
             </div>
-            <p class="timeline-hint">タイムラインのバーをクリックすると、その区間から再生します。</p>
+            <p class="timeline-hint">チップをクリックするとその位置から再生します。再生位置に合わせてハイライトが移動します。</p>
             {% else %}
-            <p class="timeline-hint">カットは検出されませんでした。設定を見直してください。</p>
+            <p class="timeline-hint">カットは検出されませんでした。設定を調整して再度お試しください。</p>
             {% endif %}
           </div>
           <div class="details-panel" id="details-panel">
@@ -383,10 +483,20 @@
               <div class="metric-entry"><span>終了 (フレーム)</span><dd id="detail-end-frame">-</dd></div>
               <div class="metric-entry"><span>開始時刻</span><dd id="detail-start-time">-</dd></div>
               <div class="metric-entry"><span>終了時刻</span><dd id="detail-end-time">-</dd></div>
-              <div class="metric-entry"><span>長さ</span><dd id="detail-duration">-</dd></div>
+              <div class="metric-entry"><span>長さ (fr / 秒)</span><dd id="detail-duration">-</dd></div>
+            </div>
+            <div class="duration-gauge" id="duration-gauge">
+              <div class="gauge-track">
+                <div class="gauge-fill" id="detail-duration-fill"></div>
+                <div class="gauge-glow"></div>
+              </div>
+              <div class="gauge-meta">
+                <span class="gauge-length" id="detail-duration-length">-</span>
+                <span class="gauge-percent" id="detail-duration-percent">0%</span>
+              </div>
             </div>
             <label for="cut-note">メモ</label>
-            <textarea id="cut-note" rows="4" placeholder="感じたことや特徴を書き留めてください。"></textarea>
+            <textarea id="cut-note" rows="4" placeholder="感じた特徴やメモを書き留めてください。"></textarea>
             {% else %}
             <p>結果がありません。別の設定で解析を行ってください。</p>
             {% endif %}
@@ -479,13 +589,16 @@
       if (!segments.length) {
         return;
       }
+
+      const bodyDataset = document.body.dataset || {};
       const video = document.getElementById('cut-player');
       const slider = document.getElementById('playback-slider');
       const currentTimeLabel = document.getElementById('current-time');
       const totalTimeLabel = document.getElementById('total-time');
-      const marker = document.getElementById('timeline-marker');
-      const timelineTrack = document.getElementById('timeline-track');
-      const segmentNodes = Array.from(document.querySelectorAll('.timeline-segment'));
+      const timeline = document.getElementById('cut-timeline');
+      const timelineProgress = document.getElementById('timeline-progress');
+      const timelineScroll = document.getElementById('timeline-scroll');
+      const segmentNodes = Array.from(document.querySelectorAll('.timeline-chip'));
       const selectBox = document.getElementById('cut-select');
       const detailLabel = document.getElementById('detail-label');
       const detailStartFrame = document.getElementById('detail-start-frame');
@@ -494,10 +607,21 @@
       const detailEndTime = document.getElementById('detail-end-time');
       const detailDuration = document.getElementById('detail-duration');
       const detailsPanel = document.getElementById('details-panel');
+      const gaugeFill = document.getElementById('detail-duration-fill');
+      const gaugeLength = document.getElementById('detail-duration-length');
+      const gaugePercent = document.getElementById('detail-duration-percent');
 
-      const initialIndex = parseInt(document.body.dataset.selectedIndex || '0', 10);
+      const initialIndex = parseInt(bodyDataset.selectedIndex || '0', 10);
       let activeIndex = Number.isInteger(initialIndex) ? Math.max(0, Math.min(initialIndex, segments.length - 1)) : 0;
       let isDragging = false;
+
+      const timelineTotalAttr = timeline ? Number.parseFloat(timeline.dataset.totalDuration || '0') : 0;
+      const longestDurationAttr = timeline ? Number.parseFloat(timeline.dataset.longestDuration || '0') : 0;
+      let longestDuration = Number.isFinite(longestDurationAttr) && longestDurationAttr > 0 ? longestDurationAttr : 0;
+      if (!longestDuration) {
+        longestDuration = Math.max(...segments.map((segment) => Number(segment.duration_seconds) || 0));
+      }
+      const timelineTotalFallback = segments[segments.length - 1]?.end_time || 0;
 
       function formatTime(value) {
         if (!Number.isFinite(value) || value < 0) {
@@ -508,31 +632,50 @@
         return `${String(minutes).padStart(2, '0')}:${seconds.toFixed(2).padStart(5, '0')}`;
       }
 
-      function updateMarker(time) {
-        const track = timelineTrack;
-        if (!track || !marker) {
+      function updateProgress(time) {
+        const duration = video && Number.isFinite(video.duration) && video.duration > 0
+          ? video.duration
+          : (Number.isFinite(timelineTotalAttr) && timelineTotalAttr > 0 ? timelineTotalAttr : timelineTotalFallback);
+        if (!timelineProgress || !duration) {
           return;
         }
-        const duration = video && Number.isFinite(video.duration) ? video.duration : (segments[segments.length - 1]?.end_time || 0);
-        if (!duration) {
+        const clamped = Math.max(0, Math.min(time, duration));
+        timelineProgress.style.width = `${(clamped / duration) * 100}%`;
+      }
+
+      function centerChip(node) {
+        if (!timelineScroll || !node) {
           return;
         }
-        const bounded = Math.max(0, Math.min(time, duration));
-        marker.style.left = `${(bounded / duration) * 100}%`;
+        const containerWidth = timelineScroll.clientWidth;
+        const offset = node.offsetLeft + node.offsetWidth / 2 - containerWidth / 2;
+        timelineScroll.scrollTo({ left: offset, behavior: 'smooth' });
+      }
+
+      function updateGauge(segment) {
+        if (!gaugeFill || !gaugeLength || !gaugePercent) {
+          return;
+        }
+        const absoluteSeconds = Number(segment.duration_seconds) || 0;
+        const ratio = longestDuration ? Math.max(0, Math.min(absoluteSeconds / longestDuration, 1)) : 0;
+        const percent = Math.round(ratio * 100);
+        gaugeFill.style.width = `${Math.max(4, percent)}%`;
+        gaugeLength.textContent = segment.duration_brief || `${absoluteSeconds.toFixed(2)} 秒`;
+        gaugePercent.textContent = `${percent}%`;
       }
 
       function setActive(index, options = {}) {
         if (!Number.isInteger(index) || index < 0 || index >= segments.length) {
           return;
         }
-        const { scrollIntoView = false } = options;
+        const { center = false } = options;
         activeIndex = index;
         const segment = segments[index];
         segmentNodes.forEach((node, idx) => {
           if (idx === index) {
             node.classList.add('is-active');
-            if (scrollIntoView) {
-              node.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+            if (center) {
+              centerChip(node);
             }
           } else {
             node.classList.remove('is-active');
@@ -549,6 +692,7 @@
         if (detailStartTime) detailStartTime.textContent = segment.start_label;
         if (detailEndTime) detailEndTime.textContent = segment.end_label;
         if (detailDuration) detailDuration.textContent = segment.duration_label;
+        updateGauge(segment);
         if (selectBox && Number(selectBox.value) !== index) {
           selectBox.value = String(index);
         }
@@ -566,7 +710,7 @@
       }
 
       function handleTimeUpdate(time) {
-        updateMarker(time);
+        updateProgress(time);
         if (!isDragging && slider) {
           slider.value = time;
         }
@@ -581,24 +725,26 @@
 
       if (video) {
         const assignDuration = () => {
-          const duration = Number.isFinite(video.duration) ? video.duration : (segments[segments.length - 1]?.end_time || 0);
-          if (slider && Number.isFinite(duration)) {
+          const duration = Number.isFinite(video.duration) && video.duration > 0
+            ? video.duration
+            : (Number.isFinite(timelineTotalAttr) && timelineTotalAttr > 0 ? timelineTotalAttr : timelineTotalFallback);
+          if (slider && Number.isFinite(duration) && duration > 0) {
             slider.max = duration;
           }
-          if (totalTimeLabel && Number.isFinite(duration)) {
+          if (totalTimeLabel && Number.isFinite(duration) && duration > 0) {
             totalTimeLabel.textContent = formatTime(duration);
           }
         };
         if (video.readyState >= 1) {
           assignDuration();
-          handleTimeUpdate(video.currentTime);
+          handleTimeUpdate(video.currentTime || 0);
         }
         video.addEventListener('loadedmetadata', () => {
           assignDuration();
-          handleTimeUpdate(video.currentTime);
+          handleTimeUpdate(video.currentTime || 0);
         });
         video.addEventListener('timeupdate', () => {
-          handleTimeUpdate(video.currentTime);
+          handleTimeUpdate(video.currentTime || 0);
         });
       }
 
@@ -607,7 +753,7 @@
           const value = Number.parseFloat(event.target.value);
           if (Number.isFinite(value)) {
             isDragging = true;
-            updateMarker(value);
+            updateProgress(value);
             if (currentTimeLabel) {
               currentTimeLabel.textContent = formatTime(value);
             }
@@ -638,7 +784,7 @@
               console.warn('seek failed', err);
             }
           }
-          setActive(index, { scrollIntoView: false });
+          setActive(index, { center: true });
         });
       });
 
@@ -657,16 +803,16 @@
               console.warn('seek failed', err);
             }
           }
-          setActive(index, { scrollIntoView: true });
+          setActive(index, { center: true });
         });
       }
 
-      setActive(activeIndex);
+      setActive(activeIndex, { center: true });
       if (video) {
         const initialTime = video.currentTime || segments[activeIndex].start_time || 0;
         handleTimeUpdate(initialTime);
       } else {
-        updateMarker(segments[activeIndex].start_time || 0);
+        updateProgress(segments[activeIndex].start_time || 0);
       }
     })();
   </script>
