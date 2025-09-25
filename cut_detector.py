@@ -171,7 +171,13 @@ def _build_segments_html(segments: List[Dict[str, float]], selected_index: int, 
     return "".join(parts)
 
 
-def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict[str, float]], selected_index: int, duration_seconds: float) -> None:
+def render_video_timeline(
+    video_base64: str,
+    mime_type: str,
+    segments: List[Dict[str, float]],
+    selected_index: int,
+    duration_seconds: float,
+) -> None:
     safe_index = selected_index if 0 <= selected_index < len(segments) else 0
     segments_html = _build_segments_html(segments, safe_index, duration_seconds)
     template = Template(
@@ -180,9 +186,23 @@ def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict
   <video id="cut-player" controls preload="metadata">
     <source src="data:$mime_type;base64,$video_data" type="$mime_type">
   </video>
+  <div class="playback-bar">
+    <span class="time-label" id="current-time">00:00.00</span>
+    <input type="range" id="playback-slider" min="0" max="$duration_seconds" value="0" step="0.05">
+    <span class="time-label" id="total-time">00:00.00</span>
+  </div>
   <div class="timeline" id="cut-timeline">
     <div class="timeline-marker" id="cut-marker"></div>
     $segments_html
+  </div>
+  <div class="cut-detail" id="cut-detail">
+    <div class="cut-detail__header">現在のカット</div>
+    <div class="cut-detail__body">
+      <div class="cut-detail__row"><span>カット番号</span><strong id="cut-label">-</strong></div>
+      <div class="cut-detail__row"><span>開始</span><strong id="cut-start">-</strong></div>
+      <div class="cut-detail__row"><span>終了</span><strong id="cut-end">-</strong></div>
+      <div class="cut-detail__row"><span>長さ</span><strong id="cut-duration">-</strong></div>
+    </div>
   </div>
 </div>
 <script>
@@ -192,6 +212,30 @@ def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict
   const duration = $duration_seconds;
   const player = document.getElementById("cut-player");
   const marker = document.getElementById("cut-marker");
+  const slider = document.getElementById("playback-slider");
+  const currentTimeLabel = document.getElementById("current-time");
+  const totalTimeLabel = document.getElementById("total-time");
+  const detailRoot = document.getElementById("cut-detail");
+  const detailLabel = document.getElementById("cut-label");
+  const detailStart = document.getElementById("cut-start");
+  const detailEnd = document.getElementById("cut-end");
+  const detailDuration = document.getElementById("cut-duration");
+
+  const segmentData = segments.map((segment) => ({
+    start: parseFloat(segment.dataset.start || "0"),
+    end: parseFloat(segment.dataset.end || "0"),
+    duration: parseFloat(segment.dataset.duration || "0"),
+    label: segment.querySelector("span") ? segment.querySelector("span").textContent.trim() : "-",
+  }));
+
+  function formatTime(value) {
+    if (!Number.isFinite(value) || value < 0) {
+      return "-";
+    }
+    const minutes = Math.floor(value / 60);
+    const seconds = value - minutes * 60;
+    return String(minutes).padStart(2, "0") + ":" + seconds.toFixed(2).padStart(5, "0");
+  }
 
   function markSelection(targetIndex) {
     segments.forEach((segment, index) => {
@@ -201,6 +245,15 @@ def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict
         segment.removeAttribute("data-selected");
       }
     });
+    const target = segmentData[targetIndex];
+    if (target && detailRoot) {
+      detailRoot.setAttribute("data-has-selection", "true");
+      detailLabel.textContent = "#" + target.label;
+      detailStart.textContent = formatTime(target.start);
+      detailEnd.textContent = formatTime(target.end);
+      const durationFormatted = formatTime(target.duration);
+      detailDuration.textContent = durationFormatted + " (" + target.duration.toFixed(2) + " 秒)";
+    }
   }
 
   function moveMarker(time) {
@@ -224,17 +277,92 @@ def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict
     }
   }
 
+  let lastActiveIndex = -1;
+  let isDragging = false;
+
+  function syncActiveSegment(currentTime) {
+    if (!segments.length) {
+      return;
+    }
+    let activeIndex = segments.length - 1;
+    for (let i = 0; i < segmentData.length; i += 1) {
+      const { start, end } = segmentData[i];
+      if (currentTime >= start && (currentTime < end || i === segmentData.length - 1)) {
+        activeIndex = i;
+        break;
+      }
+    }
+    if (activeIndex !== lastActiveIndex) {
+      lastActiveIndex = activeIndex;
+      markSelection(activeIndex);
+    }
+  }
+
+  function handleTimeUpdate(time) {
+    moveMarker(time);
+    syncActiveSegment(time);
+    if (!isDragging && slider) {
+      slider.value = time;
+    }
+    if (currentTimeLabel) {
+      currentTimeLabel.textContent = formatTime(time);
+    }
+  }
+
   if (player) {
+    const assignDuration = () => {
+      if (slider && duration) {
+        slider.max = duration;
+      }
+      if (totalTimeLabel) {
+        totalTimeLabel.textContent = formatTime(duration);
+      }
+    };
+
     if (player.readyState >= 1) {
+      assignDuration();
       seekToTarget();
-      moveMarker(player.currentTime);
+      handleTimeUpdate(player.currentTime);
     } else {
       player.addEventListener("loadedmetadata", () => {
+        assignDuration();
         seekToTarget();
-        moveMarker(player.currentTime);
+        handleTimeUpdate(player.currentTime);
       });
     }
-    player.addEventListener("timeupdate", () => moveMarker(player.currentTime));
+    player.addEventListener("timeupdate", () => handleTimeUpdate(player.currentTime));
+  }
+
+  if (slider) {
+    slider.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!target) {
+        return;
+      }
+      const value = parseFloat(target.value);
+      if (Number.isFinite(value)) {
+        isDragging = true;
+        moveMarker(value);
+        if (currentTimeLabel) {
+          currentTimeLabel.textContent = formatTime(value);
+        }
+      }
+    });
+    slider.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!target) {
+        return;
+      }
+      const value = parseFloat(target.value);
+      if (Number.isFinite(value) && player) {
+        try {
+          player.currentTime = value;
+        } catch (error) {
+          console.warn("slider seek error", error);
+        }
+      }
+      isDragging = false;
+    });
   }
 
   segments.forEach((segment, index) => {
@@ -250,10 +378,20 @@ def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict
       }
       markSelection(index);
       moveMarker(start);
+      if (slider) {
+        slider.value = start;
+      }
+      if (currentTimeLabel) {
+        currentTimeLabel.textContent = formatTime(start);
+      }
+      lastActiveIndex = index;
     });
   });
 
   markSelection(selectedIndex);
+  if (slider) {
+    slider.value = initialStart || 0;
+  }
 })();
 </script>
 <style>
@@ -267,6 +405,25 @@ def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict
   border-radius: 12px;
   background: #000;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+}
+.playback-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(12px);
+}
+.playback-bar input[type="range"] {
+  width: 100%;
+  accent-color: #2563eb;
+}
+.time-label {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #1f2937;
 }
 .timeline {
   position: relative;
@@ -320,6 +477,34 @@ def render_video_timeline(video_base64: str, mime_type: str, segments: List[Dict
   font-size: 0.9rem;
   color: #475569;
 }
+.cut-detail {
+  border-radius: 12px;
+  padding: 1rem;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.15);
+}
+.cut-detail__header {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #312e81;
+  margin-bottom: 0.75rem;
+}
+.cut-detail__body {
+  display: grid;
+  gap: 0.5rem;
+}
+.cut-detail__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #312e81;
+}
+.cut-detail__row span {
+  opacity: 0.75;
+}
+.cut-detail__row strong {
+  font-variant-numeric: tabular-nums;
+}
 </style>
         """
     )
@@ -338,6 +523,7 @@ def reset_analysis_state() -> None:
     st.session_state["selected_cut"] = 0
     st.session_state["selected_cut_box"] = 0
     st.session_state["cut_notes"] = {}
+    st.session_state["demo_run_done"] = False
 
 
 def build_output_payload(video_name: str, analysis: Dict[str, object], notes: Dict[str, str]) -> Dict[str, object]:
@@ -388,8 +574,30 @@ for key, default_value in {
     "video_base64": "",
     "video_base64_id": "",
     "cut_notes": {},
+    "demo_run_done": False,
 }.items():
     st.session_state.setdefault(key, default_value)
+
+demo_video_path = os.getenv("CUTONLY_DEMO_VIDEO", "").strip()
+if (
+    demo_video_path
+    and not st.session_state.get("video_bytes")
+    and Path(demo_video_path).exists()
+):
+    try:
+        video_bytes = Path(demo_video_path).read_bytes()
+        source_id = f"demo:{demo_video_path}:{len(video_bytes)}"
+        st.session_state["source_id"] = source_id
+        st.session_state["video_bytes"] = video_bytes
+        st.session_state["video_name"] = Path(demo_video_path).name
+        st.session_state["video_mime"] = guess_mime_type(demo_video_path)
+        st.session_state["video_base64"] = base64.b64encode(video_bytes).decode("utf-8")
+        st.session_state["video_base64_id"] = source_id
+        st.session_state["demo_run_done"] = False
+        reset_analysis_state()
+        st.info("デモ動画を読み込みました。解析ボタンを押して確認できます。")
+    except OSError as exc:
+        st.warning(f"デモ動画を読み込めませんでした: {exc}")
 
 uploaded_file = st.file_uploader(
     "動画ファイルをアップロード", type=["mp4", "mov", "mkv", "avi", "webm"], accept_multiple_files=False
@@ -525,6 +733,45 @@ if submitted:
                     status_placeholder.warning(
                         "一時ファイルを削除できませんでした。他のアプリケーションでファイルを開いていないか確認してください。"
                     )
+
+if (
+    os.getenv("CUTONLY_DEMO_AUTORUN")
+    and st.session_state.get("video_bytes")
+    and st.session_state.get("analysis") is None
+    and not st.session_state.get("demo_run_done")
+):
+    demo_progress = st.progress(0.0)
+    demo_status = st.info("デモ解析を実行しています…")
+    temp_path = None
+
+    def _demo_progress(value: float) -> None:
+        demo_progress.progress(float(min(max(value, 0.0), 1.0)))
+
+    suffix = os.path.splitext(st.session_state.get("video_name") or "")[1] or ".mp4"
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmpfile:
+            tmpfile.write(st.session_state["video_bytes"])
+            temp_path = tmpfile.name
+        result = detect_cuts(temp_path, "content", 15, _demo_progress)
+        demo_progress.progress(1.0)
+        demo_status.success("デモ解析が完了しました。")
+        st.session_state["analysis"] = {
+            **result,
+            "method": "content",
+            "min_len_frames": 15,
+        }
+        st.session_state["selected_cut"] = 0
+        st.session_state["selected_cut_box"] = 0
+        st.session_state["cut_notes"] = {}
+    except Exception as exc:  # pylint: disable=broad-except
+        demo_status.error(f"デモ解析中にエラーが発生しました: {exc}")
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            if not remove_file_with_retry(temp_path):
+                st.warning(
+                    "デモ用の一時ファイルを削除できませんでした。他のアプリケーションでファイルを開いていないか確認してください。"
+                )
+    st.session_state["demo_run_done"] = True
 
 analysis = st.session_state.get("analysis")
 has_video_source = bool(st.session_state.get("video_bytes"))
