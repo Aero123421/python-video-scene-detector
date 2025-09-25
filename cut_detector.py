@@ -34,7 +34,7 @@ def guess_mime_type(filename: str) -> str:
 def detect_cuts(path: str, method: str, min_len_frames: int, progress_callback: Callable[[float], None]) -> Dict[str, object]:
     video = open_video(path)
     total_frames = video.duration.get_frames() if video.duration else 0
-    fps = float(video.base_timecode.frame_rate) if video.base_timecode else 0.0
+    fps = float(video.frame_rate) if video.frame_rate else 0.0
 
     manager = SceneManager()
     if method == "adaptive":
